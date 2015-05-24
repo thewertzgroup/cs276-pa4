@@ -10,6 +10,8 @@ import java.util.List;
 import java.util.Map;
 
 public class Util {
+  public static String specialTerm = "%&%#"; // special term will be needed later in AScorer for laplace smoothing for terms not in this trainihg corpus
+  
   public static Map<Query,List<Document>> loadTrainData (String feature_file_name) throws Exception {
     Map<Query, List<Document>> result = new HashMap<Query, List<Document>>();
 

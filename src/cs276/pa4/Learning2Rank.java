@@ -7,8 +7,10 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import weka.classifiers.Classifier;
 import weka.core.Instances;
@@ -16,7 +18,7 @@ import weka.core.Instances;
 public class Learning2Rank {
 
 	
-	public static Classifier train(String train_data_file, String train_rel_file, int task, Map<String,Double> idfs) {
+	public static Classifier train(String train_data_file, String train_rel_file, int task, Map<String,Double> idfs) throws Exception {
 	    System.err.println("## Training with feature_file =" + train_data_file + ", rel_file = " + train_rel_file + " ... \n");
 	    Classifier model = null;
 	    Learner learner = null;
@@ -51,7 +53,7 @@ public class Learning2Rank {
 	  return model;
 	}
 
-	 public static Map<String, List<String>> test(String test_data_file, Classifier model, int task, Map<String,Double> idfs){
+	 public static Map<String, List<String>> test(String test_data_file, Classifier model, int task, Map<String,Double> idfs) throws Exception{
 		 	System.err.println("## Testing with feature_file=" + test_data_file + " ... \n");
 		    Map<String, List<String>> ranked_queries = new HashMap<String, List<String>>();
 		    Learner learner = null;
@@ -99,10 +101,10 @@ public class Learning2Rank {
 	}
 	
 
-	public static void main(String[] args) throws IOException {
+	public static void main(String[] args) throws Exception {
 	    if (args.length != 4 && args.length != 5) {
 	      System.err.println("Input arguments: " + Arrays.toString(args));
-	      System.err.println("Usage: <train_data_file> <train_data_file> <test_data_file> <task> [ranked_out_file]");
+	      System.err.println("Usage: <train_data_file> <train_rel_file> <test_data_file> <task> [ranked_out_file]");
 	      System.err.println("  ranked_out_file (optional): output results are written into the specified file. "
 	          + "If not, output to stdout.");
 	      return;
@@ -125,6 +127,25 @@ public class Learning2Rank {
 	    } catch(IOException e){
 	      e.printStackTrace();
 	    }
+	    // process idfs to be ready: currently it is just document frequencies
+	    int totalDocCount = 98998; 
+		// add the special term to account for terms not in training corpus 
+	    if(!idfs.containsKey(Util.specialTerm)) // the term is new
+		{			 							
+			idfs.put(Util.specialTerm, 0.0); 
+		//	System.out.println("success");
+		}
+		// Make idf using df and do laplace smoothing 
+		for (String term : idfs.keySet()) {
+			/*
+			 * @//TODO : Your code here
+			 */
+			double idf = Math.log((double)(totalDocCount+1)/(idfs.get(term)+1.0));// add 1 smoothing: laplace 		 		
+			idfs.put(term, idf); // overwrite the document frequency with the smoothened idf
+			}
+		
+		
+	    
 	    
 	    /* Train & test */
 	    System.err.println("### Running task" + task + "...");		
@@ -139,13 +160,17 @@ public class Learning2Rank {
 	    (new File(trainOutFile)).delete();
       
 	    Map<String, List<String>> ranked_queries = test(test_data_file, model, task, idfs);
-	    
+	 
 	    /* Output results */
+	    
 	    if(ranked_out_file.equals("")){ /* output to stdout */
 	      writeRankedResultsToFile(ranked_queries, System.out);
 	    } else { 						/* output to file */
 	      try {
 	        writeRankedResultsToFile(ranked_queries, new PrintStream(new FileOutputStream(ranked_out_file)));
+	        String test_rel_file = ".\\data\\pa4.rel.dev"; 
+	        NdcgMain test_ndcg = new NdcgMain(test_rel_file);
+		    System.err.println("# Test NDCG=" + test_ndcg.score(ranked_out_file));
 	      } catch (FileNotFoundException e) {
 	        e.printStackTrace();
 	      }
