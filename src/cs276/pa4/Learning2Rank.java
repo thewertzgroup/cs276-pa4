@@ -67,7 +67,7 @@ public class Learning2Rank
 	public static Map<String, List<String>> test(String test_data_file, Classifier model, int task, Map<String,Double> idfs)
 	{
 		System.err.println("## Testing with feature_file=" + test_data_file + " ... \n");
-		Map<String, List<String>> ranked_queries = new HashMap<String, List<String>>();
+		Map<String, List<String>> rankedQueries = new HashMap<String, List<String>>();
 		Learner learner = null;
 		if (task == 1) 
 		{
@@ -101,9 +101,9 @@ public class Learning2Rank
 		TestFeatures tf = learner.extract_test_features(test_data_file, idfs);
 
 		/* Step (2): implement your prediction and ranking code here */
-		ranked_queries = learner.testing(tf, model);
+		rankedQueries = learner.testing(tf, model);
 
-		return ranked_queries;
+		return rankedQueries;
 	}
 
 

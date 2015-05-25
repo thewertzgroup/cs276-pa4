@@ -1,9 +1,12 @@
 package cs276.pa4;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 
 import weka.classifiers.Classifier;
 import weka.classifiers.functions.LinearRegression;
@@ -172,6 +175,7 @@ public class PointwiseLearner extends Learner
 		
 		for (Query query : queryMap.keySet())
 		{
+			// Maps the URL to the row index of the test matrix to retrieve for prediction.
 			Map<String, Integer> urlIndexMap = new HashMap<>(); 
 
 			List<Document> docs = queryMap.get(query);
@@ -217,7 +221,7 @@ public class PointwiseLearner extends Learner
 				Instance inst = new DenseInstance(1.0, instance); 
 				testFeatures.features.add(inst);
 				
-				urlIndexMap.put(doc.url, testFeatures.index_map.size()-1);
+				urlIndexMap.put(doc.url, testFeatures.features.size()-1);
 			}
 			
 			testFeatures.index_map.put(query.query,  urlIndexMap);
@@ -233,7 +237,35 @@ public class PointwiseLearner extends Learner
 		/*
 		 * @TODO: Your code here
 		 */
-		return null;
+		Map<String, List<String>> rankedQueries = new HashMap<String, List<String>>();
+		
+		for (String query : tf.index_map.keySet())
+		{
+			
+			Map<String, Integer> urlIndexMap = tf.index_map.get(query);
+			
+			Map<Double, String> results = new TreeMap<>(Collections.reverseOrder());
+			
+			for (String url : urlIndexMap.keySet())
+			{
+				Integer index = urlIndexMap.get(url);
+				double result;
+				try 
+				{
+					result = model.classifyInstance(tf.features.get(index));
+				} 
+				catch (Exception e) 
+				{
+					e.printStackTrace();
+					throw new RuntimeException("Exception in classifyInstance.", e);
+				}
+				results.put(result, url);
+			}
+			
+			rankedQueries.put(query, new ArrayList<String>(results.values()));
+		}
+
+		return rankedQueries;
 	}
 
 }
