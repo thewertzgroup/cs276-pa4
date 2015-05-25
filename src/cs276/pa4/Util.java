@@ -16,38 +16,50 @@ public class Util
 	/*
 	 * 
 	 */
-	public static Double getIDF(String query, Map<String, Double> idfs)
+	public static Map<String, Double> getIDFs(Map<String, Double> dfs)
 	{
+		Map<String, Double> idfs = new HashMap<>();
 		
-		Double result = 0.0;
-		
-		String[] terms = query.trim().split("\\s+");
-		for (String term : terms) 
+		// Make idf using df
+		for (String term : dfs.keySet()) 
 		{
-		
+			/*
+			 * @//TODO : Your code here.  ADD LaPlace +1 smoothing.
+			 */
+			Double df = dfs.get(term);
+			
+			idfs.put(term, Math.log( ((double)N + 1.0) / (df + 1.0) ) );
 		}
-
 		
-		return result;
+		// idf for missing terms:
+		idfs.put(AScorer.IDF_MAX, Math.log( ((double)N + 1.0) / 1.0 ));
+
+		return idfs;
 	}
 	
 	
 	/*
 	 * 
 	 */
-	public static Double getTF(String field, Map<String, Double> idfs)
+	public static Map<String, Double> getIDFVector(Query query, Map<String, Double> idfs)
 	{
-		Double N = 98998.0;
-		Double result = 0.0;
+		Map<String, Double> IDFVector = new HashMap<>();
 		
-		String[] terms = field.trim().split("\\s+");
+		String[] terms = query.query.trim().split("\\s+");
 		for (String term : terms) 
 		{
-		
+			Double idf = idfs.get(term);
+			if (null != idf)
+			{
+				IDFVector.put(term,  idfs.get(term));
+			}
+			else
+			{
+				IDFVector.put(term, idfs.get(AScorer.IDF_MAX));
+			}
 		}
-
 		
-		return result;
+		return IDFVector;
 	}
 	
 	

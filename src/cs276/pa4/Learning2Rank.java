@@ -121,7 +121,7 @@ public class Learning2Rank {
 	    String dfFile = "df.txt";
 	    Map<String,Double> idfs = null;
 	    try {
-	      idfs = Util.loadDFs(dfFile);
+	      idfs = Util.getIDFs( Util.loadDFs(dfFile) );
 	    } catch(IOException e){
 	      e.printStackTrace();
 	    }
