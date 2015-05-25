@@ -168,7 +168,7 @@ public class Learning2Rank {
 	    } else { 						/* output to file */
 	      try {
 	        writeRankedResultsToFile(ranked_queries, new PrintStream(new FileOutputStream(ranked_out_file)));
-	        String test_rel_file = ".\\data\\pa4.rel.sm"; 
+	        String test_rel_file = ".\\data\\pa4.rel.dev"; 
 	        NdcgMain test_ndcg = new NdcgMain(test_rel_file);
 		    System.err.println("# Test NDCG=" + test_ndcg.score(ranked_out_file));
 	      } catch (FileNotFoundException e) {
