@@ -8,6 +8,8 @@ import weka.core.Instances;
 
 public abstract class Learner {
 	
+	protected AScorer scorer = null;
+	
 	/* Construct training features matrix */
 	public abstract Instances extract_train_features(String train_data_file, String train_rel_file, Map<String,Double> idfs);
 

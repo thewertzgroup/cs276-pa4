@@ -17,6 +17,45 @@ import weka.core.Instances;
 
 public class PointwiseLearner extends Learner 
 {
+	
+	private double[] getInstanceVector(Map<String, Map<String, Double>> tfVectors, Map<String, Double> idfVector)
+	{
+		double[] instance = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
+
+		// Iterate over tf vectors, and calculate field tf-idf
+		for (String type : tfVectors.keySet())
+		{
+			Double score = scorer.dotVectors(tfVectors.get(type), idfVector);
+			
+			// "url","title","body","header","anchor"
+			if (type.equals("url"))
+			{
+				instance[0] = score;
+			}
+			else if (type.equals("title"))
+			{
+				instance[1] = score;
+			}
+			else if (type.equals("body"))
+			{
+				instance[2] = score;
+			}
+			else if (type.equals("header"))
+			{
+				instance[3] = score;
+			}
+			else if (type.equals("anchor"))
+			{
+				instance[4] = score;
+			}
+			else
+			{
+				throw new RuntimeException("Unsupported type in PointwiseLearner.");
+			}
+		}
+		
+		return instance;
+	}
 
 	@Override
 	public Instances extract_train_features(String train_data_file, String train_rel_file, Map<String, Double> idfs) 
@@ -56,10 +95,14 @@ public class PointwiseLearner extends Learner
 			e.printStackTrace();
 			throw new RuntimeException("Unable to load signal data, or relevance data.", e);
 		}
+
+		// Set scorer for base class.
+		if (null == scorer)
+		{
+			scorer = new BM25Scorer(idfs, queryMap);
+		}
 		
 		// Iterate over queries / documents and compute five-dimensional vector of tf-idf scores.	
-		AScorer scorer = new BM25Scorer(idfs, queryMap);
-		
 		for (Query query : queryMap.keySet())
 		{
 			List<Document> docs = queryMap.get(query);
@@ -68,41 +111,9 @@ public class PointwiseLearner extends Learner
 				Map<String, Map<String, Double>> tfVectors = scorer.getDocTermFreqs(doc, query);
 				Map<String, Double> idfVector = Util.getIDFVector(query, idfs);
 				
-				double[] instance = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
-
-				// Iterate over tf vectors, and calculate field tf-idf
-				for (String type : tfVectors.keySet())
-				{
-					Double score = scorer.dotVectors(tfVectors.get(type), idfVector);
+				double[] instance = getInstanceVector(tfVectors, idfVector);
 					
-					// "url","title","body","header","anchor"
-					if (type.equals("url"))
-					{
-						instance[0] = score;
-					}
-					else if (type.equals("title"))
-					{
-						instance[1] = score;
-					}
-					else if (type.equals("body"))
-					{
-						instance[2] = score;
-					}
-					else if (type.equals("header"))
-					{
-						instance[3] = score;
-					}
-					else if (type.equals("anchor"))
-					{
-						instance[4] = score;
-					}
-					else
-					{
-						throw new RuntimeException("Unsupported type in PointwiseLearner.");
-					}
-				}
-				
-				// TODO: ADD RELEVANCE SCORE (TARGET VARIABLE) HERE.
+				// ADD RELEVANCE SCORE (TARGET VARIABLE) HERE.
 				instance[5] = relMap.get(query.query).get(doc.url);
 				
 				Instance inst = new DenseInstance(1.0, instance); 
@@ -155,9 +166,6 @@ public class PointwiseLearner extends Learner
 		testFeatures.features = new Instances("test_dataset", attributes, 0);
 		testFeatures.index_map = new HashMap<>(); 
 
-		/* Set last attribute as target */
-		testFeatures.features.setClassIndex(testFeatures.features.numAttributes() - 1);
-		
 		/* Add data */
 		Map<Query,List<Document>> queryMap = null;
 		try 
@@ -167,11 +175,14 @@ public class PointwiseLearner extends Learner
 		catch (Exception e) 
 		{
 			e.printStackTrace();
-			throw new RuntimeException("Unable to load signal data, or relevance data.", e);
+			throw new RuntimeException("Unable to load signal test data.", e);
 		}
 		
-		// Iterate over queries / documents and compute five-dimensional vector of tf-idf scores.	
-		AScorer scorer = new BM25Scorer(idfs, queryMap);
+		// Iterate over queries / documents and compute five-dimensional vector of tf-idf scores.
+		if (null == scorer)
+		{
+			scorer = new BM25Scorer(idfs, queryMap);
+		}
 		
 		for (Query query : queryMap.keySet())
 		{
@@ -184,39 +195,7 @@ public class PointwiseLearner extends Learner
 				Map<String, Map<String, Double>> tfVectors = scorer.getDocTermFreqs(doc, query);
 				Map<String, Double> idfVector = Util.getIDFVector(query, idfs);
 				
-				double[] instance = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
-
-				// Iterate over tf vectors, and calculate field tf-idf
-				for (String type : tfVectors.keySet())
-				{
-					Double score = scorer.dotVectors(tfVectors.get(type), idfVector);
-					
-					// "url","title","body","header","anchor"
-					if (type.equals("url"))
-					{
-						instance[0] = score;
-					}
-					else if (type.equals("title"))
-					{
-						instance[1] = score;
-					}
-					else if (type.equals("body"))
-					{
-						instance[2] = score;
-					}
-					else if (type.equals("header"))
-					{
-						instance[3] = score;
-					}
-					else if (type.equals("anchor"))
-					{
-						instance[4] = score;
-					}
-					else
-					{
-						throw new RuntimeException("Unsupported type in PointwiseLearner.");
-					}
-				}
+				double[] instance = getInstanceVector(tfVectors, idfVector);
 				
 				Instance inst = new DenseInstance(1.0, instance); 
 				testFeatures.features.add(inst);
