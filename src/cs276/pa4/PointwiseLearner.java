@@ -1,6 +1,7 @@
 package cs276.pa4;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -132,13 +133,97 @@ public class PointwiseLearner extends Learner
 
 	
 	@Override
-	public TestFeatures extract_test_features(String test_data_file,
-			Map<String, Double> idfs) 
+	public TestFeatures extract_test_features(String test_data_file, Map<String, Double> idfs) 
 	{
 		/*
 		 * @TODO: Your code here
 		 */
-		return null;
+		TestFeatures testFeatures = new TestFeatures();
+		
+		/* Build attributes list */
+		ArrayList<Attribute> attributes = new ArrayList<Attribute>();
+		attributes.add(new Attribute("url_w"));
+		attributes.add(new Attribute("title_w"));
+		attributes.add(new Attribute("body_w"));
+		attributes.add(new Attribute("header_w"));
+		attributes.add(new Attribute("anchor_w"));
+		attributes.add(new Attribute("relevance_score"));
+		
+		testFeatures.features = new Instances("test_dataset", attributes, 0);
+		testFeatures.index_map = new HashMap<>(); 
+
+		/* Set last attribute as target */
+		testFeatures.features.setClassIndex(testFeatures.features.numAttributes() - 1);
+		
+		/* Add data */
+		Map<Query,List<Document>> queryMap = null;
+		try 
+		{
+			queryMap = Util.loadTrainData(test_data_file);
+		} 
+		catch (Exception e) 
+		{
+			e.printStackTrace();
+			throw new RuntimeException("Unable to load signal data, or relevance data.", e);
+		}
+		
+		// Iterate over queries / documents and compute five-dimensional vector of tf-idf scores.	
+		AScorer scorer = new BM25Scorer(idfs, queryMap);
+		
+		for (Query query : queryMap.keySet())
+		{
+			Map<String, Integer> urlIndexMap = new HashMap<>(); 
+
+			List<Document> docs = queryMap.get(query);
+			for (Document doc : docs)
+			{
+				Map<String, Map<String, Double>> tfVectors = scorer.getDocTermFreqs(doc, query);
+				Map<String, Double> idfVector = Util.getIDFVector(query, idfs);
+				
+				double[] instance = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
+
+				// Iterate over tf vectors, and calculate field tf-idf
+				for (String type : tfVectors.keySet())
+				{
+					Double score = scorer.dotVectors(tfVectors.get(type), idfVector);
+					
+					// "url","title","body","header","anchor"
+					if (type.equals("url"))
+					{
+						instance[0] = score;
+					}
+					else if (type.equals("title"))
+					{
+						instance[1] = score;
+					}
+					else if (type.equals("body"))
+					{
+						instance[2] = score;
+					}
+					else if (type.equals("header"))
+					{
+						instance[3] = score;
+					}
+					else if (type.equals("anchor"))
+					{
+						instance[4] = score;
+					}
+					else
+					{
+						throw new RuntimeException("Unsupported type in PointwiseLearner.");
+					}
+				}
+				
+				Instance inst = new DenseInstance(1.0, instance); 
+				testFeatures.features.add(inst);
+				
+				urlIndexMap.put(doc.url, testFeatures.index_map.size()-1);
+			}
+			
+			testFeatures.index_map.put(query.query,  urlIndexMap);
+		}
+
+		return testFeatures;
 	}
 
 	
