@@ -101,8 +101,6 @@ public class PointwiseLearner extends Learner {
 		attributes.add(new Attribute("relevance_score"));
 		myTestFeatures.features = new Instances("test_dataset", attributes, 0);
 		myTestFeatures.index_map = new HashMap<String, Map<String, Integer>>(); 
-		/* Set last attribute as target */
-	//	myTestFeatures.features.setClassIndex(myTestFeatures.features.numAttributes() - 1);
 		
 		// load the training and the relevance score data
 		Map<Query,List<Document>> queryDict = Util.loadTrainData(test_data_file);
@@ -187,11 +185,11 @@ public class PointwiseLearner extends Learner {
 		
 			ranked_queries.put(q, rankedUrl); 
 		} 
-	/*	double weights[] = ((LinearRegression)model).coefficients(); 
+		double weights[] = ((LinearRegression)model).coefficients(); 
 		System.out.println("The model weights are" );
 		for(int i = 0; i< weights.length; i++)
 			System.out.print(weights[i] + " ");
-		System.out.print("\n");*/
+		System.out.print("\n");
 		return ranked_queries;
 	}
 
