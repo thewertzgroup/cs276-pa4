@@ -54,6 +54,23 @@ public class PointwiseLearner extends Learner {
 			throw new RuntimeException("Unable to load signal data, or relevance data.", e);
 		}
 		
+		// Iterate over queries / documents and compute five-dimensional vector of tf-idf scores.
+		
+		for (Query query : queryMap.keySet())
+		{
+			List<Document> docs = queryMap.get(query);
+			for (Document doc : docs)
+			{
+				doc.url;
+				doc.title;
+				doc.body_length;
+				doc.body_hits;
+				doc.headers;
+				doc.anchors;
+				relMap.get(query.query).get(doc);
+			}
+		}
+		
 		return dataset;
 	}
 

@@ -9,8 +9,53 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class Util {
-  public static Map<Query,List<Document>> loadTrainData (String feature_file_name) throws Exception {
+public class Util 
+{
+	private static Double N = 98998.0;
+	
+	/*
+	 * 
+	 */
+	public static Double getIDF(String query, Map<String, Double> idfs)
+	{
+		
+		Double result = 0.0;
+		
+		String[] terms = query.trim().split("\\s+");
+		for (String term : terms) 
+		{
+		
+		}
+
+		
+		return result;
+	}
+	
+	
+	/*
+	 * 
+	 */
+	public static Double getTF(String field, Map<String, Double> idfs)
+	{
+		Double N = 98998.0;
+		Double result = 0.0;
+		
+		String[] terms = field.trim().split("\\s+");
+		for (String term : terms) 
+		{
+		
+		}
+
+		
+		return result;
+	}
+	
+	
+  /*
+   * 
+   */
+  public static Map<Query,List<Document>> loadTrainData (String feature_file_name) throws Exception 
+  {
     Map<Query, List<Document>> result = new HashMap<Query, List<Document>>();
 
     File feature_file = new File(feature_file_name);
@@ -82,7 +127,12 @@ public class Util {
     return result;
   }
 
-  public static Map<String,Double> loadDFs(String dfFile) throws IOException {
+  
+  /*
+   * 
+   */
+  public static Map<String,Double> loadDFs(String dfFile) throws IOException 
+  {
     Map<String,Double> dfs = new HashMap<String, Double>();
 
     BufferedReader br = new BufferedReader(new FileReader(dfFile));
@@ -97,8 +147,13 @@ public class Util {
     return dfs;
   }
 
+  
   /* query -> (url -> score) */
-  public static Map<String, Map<String, Double>> loadRelData(String rel_file_name) throws IOException{
+  /*
+   * 
+   */
+  public static Map<String, Map<String, Double>> loadRelData(String rel_file_name) throws IOException
+  {
     Map<String, Map<String, Double>> result = new HashMap<String, Map<String, Double>>();
 
     File rel_file = new File(rel_file_name);
@@ -134,7 +189,12 @@ public class Util {
     return result;
   }
 
-  public static void main(String[] args) {
+  
+  /*
+   * 
+   */
+  public static void main(String[] args) 
+  {
     try {
       System.out.print(loadRelData(args[0]));
     } catch (IOException e) {
