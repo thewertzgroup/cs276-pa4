@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import com.sun.org.apache.xml.internal.serializer.utils.Utils;
+
 import weka.classifiers.Classifier;
 import weka.core.Attribute;
 import weka.core.DenseInstance;
@@ -41,6 +43,16 @@ public class PointwiseLearner extends Learner {
 		
 		/* Set last attribute as target */
 		dataset.setClassIndex(dataset.numAttributes() - 1);
+		
+		Map<Query,List<Document>> queryMap = null;
+		Map<String, Map<String, Double>> relMap = null;
+		try {
+			queryMap = Util.loadTrainData(train_data_file);
+			relMap 	 = Util.loadRelData(train_rel_file);
+		} catch (Exception e) {
+			e.printStackTrace();
+			throw new RuntimeException("Unable to load signal data, or relevance data.", e);
+		}
 		
 		return dataset;
 	}
