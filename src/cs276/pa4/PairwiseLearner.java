@@ -8,37 +8,49 @@ import weka.classifiers.functions.LibSVM;
 import weka.core.Instances;
 import weka.core.SelectedTag;
 
-public class PairwiseLearner extends Learner {
-  private LibSVM model;
-  public PairwiseLearner(boolean isLinearKernel){
-    try{
-      model = new LibSVM();
-    } catch (Exception e){
-      e.printStackTrace();
-    }
-    
-    if(isLinearKernel){
-      model.setKernelType(new SelectedTag(LibSVM.KERNELTYPE_LINEAR, LibSVM.TAGS_KERNELTYPE));
-    }
-  }
-  
-  public PairwiseLearner(double C, double gamma, boolean isLinearKernel){
-    try{
-      model = new LibSVM();
-    } catch (Exception e){
-      e.printStackTrace();
-    }
-    
-    model.setCost(C);
-    model.setGamma(gamma); // only matter for RBF kernel
-    if(isLinearKernel){
-      model.setKernelType(new SelectedTag(LibSVM.KERNELTYPE_LINEAR, LibSVM.TAGS_KERNELTYPE));
-    }
-  }
-  
+public class PairwiseLearner extends Learner 
+{
+	private LibSVM model;
+	
+	public PairwiseLearner(boolean isLinearKernel)
+	{
+		try
+		{
+			model = new LibSVM();
+		} 
+		catch (Exception e)
+		{
+			e.printStackTrace();
+		}
+
+		if (isLinearKernel)
+		{
+			model.setKernelType(new SelectedTag(LibSVM.KERNELTYPE_LINEAR, LibSVM.TAGS_KERNELTYPE));
+		}
+	}
+
+	public PairwiseLearner(double C, double gamma, boolean isLinearKernel)
+	{
+		try
+		{
+			model = new LibSVM();
+		}
+		catch (Exception e)
+		{
+			e.printStackTrace();
+		}
+
+		model.setCost(C);
+		model.setGamma(gamma); // only matter for RBF kernel
+		if(isLinearKernel)
+		{
+			model.setKernelType(new SelectedTag(LibSVM.KERNELTYPE_LINEAR, LibSVM.TAGS_KERNELTYPE));
+		}
+	}
+
 	@Override
-	public Instances extract_train_features(String train_data_file,
-			String train_rel_file, Map<String, Double> idfs) {
+	public Instances extract_train_features(String train_data_file, String train_rel_file, Map<String, Double> idfs) 
+	{
 		/*
 		 * @TODO: Your code here
 		 */
@@ -46,7 +58,8 @@ public class PairwiseLearner extends Learner {
 	}
 
 	@Override
-	public Classifier training(Instances dataset) {
+	public Classifier training(Instances dataset) 
+	{
 		/*
 		 * @TODO: Your code here
 		 */
@@ -54,8 +67,8 @@ public class PairwiseLearner extends Learner {
 	}
 
 	@Override
-	public TestFeatures extract_test_features(String test_data_file,
-			Map<String, Double> idfs) {
+	public TestFeatures extract_test_features(String test_data_file, Map<String, Double> idfs) 
+	{
 		/*
 		 * @TODO: Your code here
 		 */
@@ -63,8 +76,8 @@ public class PairwiseLearner extends Learner {
 	}
 
 	@Override
-	public Map<String, List<String>> testing(TestFeatures tf,
-			Classifier model) {
+	public Map<String, List<String>> testing(TestFeatures tf, Classifier model) 
+	{
 		/*
 		 * @TODO: Your code here
 		 */
