@@ -102,7 +102,7 @@ public class Learning2Rank {
 	public static void main(String[] args) throws IOException {
 	    if (args.length != 4 && args.length != 5) {
 	      System.err.println("Input arguments: " + Arrays.toString(args));
-	      System.err.println("Usage: <train_data_file> <train_data_file> <test_data_file> <task> [ranked_out_file]");
+	      System.err.println("Usage: <train_data_file> <train_rel_file> <test_data_file> <task> [ranked_out_file]");
 	      System.err.println("  ranked_out_file (optional): output results are written into the specified file. "
 	          + "If not, output to stdout.");
 	      return;
