@@ -1,12 +1,15 @@
 package cs276.pa4;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 
 import weka.classifiers.Classifier;
@@ -24,7 +27,7 @@ import weka.filters.unsupervised.attribute.Standardize;
 public class PairwiseLearner extends Learner {
   private LibSVM model;
   private ArrayList<Attribute> attributes = new ArrayList<Attribute>();
-  
+  final String [] classLabels = {"-1", "1"}; 
   public PairwiseLearner(boolean isLinearKernel){
     try{
       model = new LibSVM();
@@ -36,12 +39,15 @@ public class PairwiseLearner extends Learner {
   	 attributes.add(new Attribute("body_w"));
   	 attributes.add(new Attribute("header_w"));
   	 attributes.add(new Attribute("anchor_w"));
-  	 attributes.add(new Attribute("relevance_score"));
+  	 
+  	 
+  	
 
     } catch (Exception e){
       e.printStackTrace();
     }
-    model.setCost(0.0125);
+    
+     
     if(isLinearKernel){
       model.setKernelType(new SelectedTag(LibSVM.KERNELTYPE_LINEAR, LibSVM.TAGS_KERNELTYPE));
     }
@@ -59,7 +65,7 @@ public class PairwiseLearner extends Learner {
    	  attributes.add(new Attribute("body_w"));
    	  attributes.add(new Attribute("header_w"));
    	  attributes.add(new Attribute("anchor_w"));
-   	  attributes.add(new Attribute("relevance_score"));
+   	  
 
     } catch (Exception e){
       e.printStackTrace();
@@ -81,26 +87,30 @@ public class PairwiseLearner extends Learner {
 	  return standardizedFeatures;
   }
   
+  // overloaded to extract testing features
   public Pair<Instances, Map <String, List<Pair<String, Integer>>>>  extractPointWiseFeatures(String test_data_file,
-			 Map<String, Double> idfs, ArrayList<Attribute> attributes) throws Exception{
+			 Map<String, Double> idfs) throws Exception{
 	  
 	  Pair<Instances, Map <String, List<Pair<String, Integer>>>> featuresANDindices = extractPointWiseFeatures(test_data_file,
-				"", idfs, attributes); 	
+				"", idfs); 	
 	  return featuresANDindices; 
 }
   public Pair<Instances, Map <String, List<Pair<String, Integer>>>>  extractPointWiseFeatures(String train_data_file,
-			String train_rel_file, Map<String, Double> idfs, ArrayList<Attribute> attributes) throws Exception{
+			String train_rel_file, Map<String, Double> idfs) throws Exception{
 	  	  
 	  	Pair<Instances, Map <String, List<Pair<String, Integer>>>> featuresANDindices = null; 
 	  
 	  	Instances pointWiseFeatures = null;
 	  	Map <String, List<Pair<String, Integer>>> indexMap = new HashMap<String, List<Pair<String, Integer>>>(); 
 		
-		pointWiseFeatures = new Instances("pre_train_dataset", attributes, 0);
+	  	ArrayList<Attribute> point_attributes = new ArrayList<Attribute>(attributes);
+	  	point_attributes.add(new Attribute("relevance_score"));
+		pointWiseFeatures = new Instances("pre_train_dataset", point_attributes, 0);
 				
-		// load the training and the relevance score data
+		// load the training data
 		Map<Query,List<Document>> queryDict = Util.loadTrainData(train_data_file);
 		Map<String, Map<String, Double>> relevanceDict = null ;
+		//  load the relevance score data (if the filename is provided)
 		if(!train_rel_file.equals(""))
 			relevanceDict = Util.loadRelData(train_rel_file); 
 		// create a scorer to extract features
@@ -143,7 +153,7 @@ public class PairwiseLearner extends Learner {
 		 */				
 		// 1. Get the pointwise features  
 		Pair<Instances, Map <String, List<Pair<String, Integer>>>>  featuresANDindices = 
-				 extractPointWiseFeatures(train_data_file, train_rel_file, idfs, attributes);
+				 extractPointWiseFeatures(train_data_file, train_rel_file, idfs);
 		Instances pointWiseFeatures 					   = featuresANDindices.getFirst(); 
 		Map <String, List<Pair<String, Integer>>> indexMap = featuresANDindices.getSecond();  
 		
@@ -152,14 +162,20 @@ public class PairwiseLearner extends Learner {
 		
 		// 3. Get the pairwise features 
 		Instances pairWiseDataset = null;
-		pairWiseDataset = new Instances("train_dataset", attributes, 0);
+		ArrayList<Attribute> pair_attributes = new ArrayList<Attribute>(attributes); 
+		pair_attributes.add(new Attribute("class", Arrays.asList(classLabels)));
+		pairWiseDataset = new Instances("train_dataset", pair_attributes, 0);
+		pairWiseDataset.setClassIndex(pairWiseDataset.numAttributes() - 1);
 		
+	/*	System.out.println("class attribute" + " " + pairWiseDataset.classAttribute().value(0));
+	    System.out.println("class attribute" + " " + pairWiseDataset.classAttribute().value(1));*/
+	    
 	//	System.out.println("number of attributes is " + pairWiseDataset.numAttributes()); 
 		List<Pair<String, Integer>> queryDocFeatureList;
 		int queryDocInd1 = 0, queryDocInd2 = 0; 
 		double relevance1 = 0.0, relevance2 = 0.0;  
 		int numPositive = 0, numNegative = 0;
-		double label = 0;
+		int label = 0;
 		double flip  = 1; 
 		for(String q: indexMap.keySet())
 		{ 			
@@ -173,9 +189,10 @@ public class PairwiseLearner extends Learner {
 					relevance2 = standardizedFeatures.instance(queryDocInd2).value(standardizedFeatures.attribute("relevance_score"));
 					
 					if(relevance1!=relevance2)
-					{ 						
-						double[] instance = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
-						label = Math.signum(relevance1 - relevance2);
+					{ 	
+		
+						double[] instance = {1.0, 1.0, 1.0, 1.0, 1.0};
+						label = (int)Math.signum(relevance1 - relevance2);
 						
 						//balance the features: negative and positive instances must be balanced
 						if(label*(numPositive - numNegative) >0) // label > 0 and numPositive > numNegative OR label < 0 and numPositive < numNegative 
@@ -192,18 +209,24 @@ public class PairwiseLearner extends Learner {
 						instance[3] = flip * ( standardizedFeatures.instance(queryDocInd1).value(standardizedFeatures.attribute("header_w"))
 						                     - standardizedFeatures.instance(queryDocInd2).value(standardizedFeatures.attribute("header_w")));					
 						instance[4] = flip * ( standardizedFeatures.instance(queryDocInd1).value(standardizedFeatures.attribute("anchor_w"))
-						                     - standardizedFeatures.instance(queryDocInd2).value(standardizedFeatures.attribute("anchor_w")));
-						instance[5] = flip*label; 
+						                     - standardizedFeatures.instance(queryDocInd2).value(standardizedFeatures.attribute("anchor_w")));						
+						label = (int)flip*label;
+						String classLabel = Integer.toString(label);
 						
-					//	System.out.print(instance[5] + " "); 
-						if(instance[5]>0)
+						Instance inst = new DenseInstance(6);						
+					    inst.setDataset(pairWiseDataset);
+					    int ind = 0;
+					    for(ind = 0 ; ind < instance.length; ind++ )
+					    	inst.setValue(ind, instance[ind]);					    				     
+					    inst.setValue(ind, classLabel); 
+					    
+						pairWiseDataset.add(inst);
+						
+						if(label>0)
 							numPositive++; 
 						else 
 							numNegative++;
 						
-						Instance inst = new DenseInstance(1.0, instance);
-					
-						pairWiseDataset.add(inst);
 					}
 				} 
 		} 
@@ -213,19 +236,19 @@ public class PairwiseLearner extends Learner {
 		System.out.println("numPositive = " + numPositive);
 		System.out.println("numNegative = " + numNegative); 
 		*/
-		//4. convert last attribute, the target/label, to categorical as we have classification not regression 
+	/*	//4. convert last attribute, the target/label, to categorical as we have classification not regression 
 		NumericToNominal convert= new NumericToNominal();
 	    String[] options= new String[2];
 	    options[0]="-R";
 	    options[1]="6";  //range of variables to make nominal: just the last one
         convert.setOptions(options);
 	    convert.setInputFormat(pairWiseDataset);
-
-	    Instances finalPairWiseDataset=Filter.useFilter(pairWiseDataset, convert);
-	    finalPairWiseDataset.setClassIndex(pairWiseDataset.numAttributes() - 1);
-	   /* System.out.println(" category " + finalPairWiseDataset.get(0).stringValue(finalPairWiseDataset.attribute("relevance_score"))); 
+	    Instances finalPairWiseDataset=Filter.useFilter(pairWiseDataset, convert);	    
+	    finalPairWiseDataset.setClassIndex(pairWiseDataset.numAttributes() - 1);*/
+	    
+	    /*System.out.println(" category " + finalPairWiseDataset.get(0).stringValue(finalPairWiseDataset.attribute("relevance_score"))); 
 	    System.out.println(" category " + finalPairWiseDataset.get(1).stringValue(finalPairWiseDataset.attribute("relevance_score")));*/
-		return finalPairWiseDataset;
+		return pairWiseDataset;
 		
 	}
 
@@ -238,6 +261,9 @@ public class PairwiseLearner extends Learner {
 		return model;
 	}
 
+	
+	
+	// implement pairwise test features extraction, will work for bothlinear and nonlinear SVM  
 	@Override
 	public TestFeatures extract_test_features(String test_data_file,
 			Map<String, Double> idfs) throws Exception {
@@ -246,99 +272,270 @@ public class PairwiseLearner extends Learner {
 		 */
 		// 1. Get the pointwise features  
 		Pair<Instances, Map <String, List<Pair<String, Integer>>>>  featuresANDindices = 
-				 extractPointWiseFeatures(test_data_file, idfs, attributes);
+				 extractPointWiseFeatures(test_data_file, idfs);
 		Instances pointWiseFeatures 					   = featuresANDindices.getFirst(); 
 		Map <String, List<Pair<String, Integer>>> indexMap = featuresANDindices.getSecond();  
 		
 		// 2. Standardize the pointwise features
 		Instances standardizedFeatures = standardizeFeatures(pointWiseFeatures); 
 		
-		// 3. put the result in TestFeatures object
-		TestFeatures myTestFeatures = new TestFeatures(); 
-		myTestFeatures.features = standardizedFeatures; 
+		// 3. Get the pairwise features 
+		TestFeatures myTestFeatures = new TestFeatures(); 	
+		ArrayList<Attribute> pair_attributes = new ArrayList<Attribute>(attributes); 
+		pair_attributes.add(new Attribute("class", Arrays.asList(classLabels)));		
+		myTestFeatures .features = new Instances("test_dataset", pair_attributes, 0);
 		myTestFeatures.index_map = new HashMap<String, Map<String, Integer>>(); 
 		
-		for (String q: indexMap.keySet())
-		{ 
+	//	System.out.println("number of attributes is " + pairWiseDataset.numAttributes()); 
+		List<Pair<String, Integer>> queryDocFeatureList;
+		int queryDocInd1 = 0, queryDocInd2 = 0; 
+		String twoURLSConcat = ""; 
+		for(String q: indexMap.keySet())
+		{ 			
+			queryDocFeatureList = indexMap.get(q);
 			Map<String, Integer> queryDocFeatureMap = new HashMap<String, Integer>(); 
-			for(int ind = 0; ind < indexMap.get(q).size(); ind++ )
-				queryDocFeatureMap.put(indexMap.get(q).get(ind).getFirst(), indexMap.get(q).get(ind).getSecond()); 
+			for(int ind1 = 0; ind1 < queryDocFeatureList.size(); ind1++)
+				for( int ind2 = ind1+1; ind2 < queryDocFeatureList.size(); ind2++)
+				{ 
+					queryDocInd1 = queryDocFeatureList.get(ind1).getSecond();
+					queryDocInd2 = queryDocFeatureList.get(ind2).getSecond(); 
+									
+					double[] instance = {1.0, 1.0, 1.0, 1.0, 1.0};
+									
+					instance[0] = standardizedFeatures.instance(queryDocInd1).value(standardizedFeatures.attribute("url_w"))
+							    - standardizedFeatures.instance(queryDocInd2).value(standardizedFeatures.attribute("url_w"));
+					instance[1] = standardizedFeatures.instance(queryDocInd1).value(standardizedFeatures.attribute("title_w"))
+						        - standardizedFeatures.instance(queryDocInd2).value(standardizedFeatures.attribute("title_w"));
+					instance[2] = standardizedFeatures.instance(queryDocInd1).value(standardizedFeatures.attribute("body_w"))
+						        - standardizedFeatures.instance(queryDocInd2).value(standardizedFeatures.attribute("body_w"));
+					instance[3] = standardizedFeatures.instance(queryDocInd1).value(standardizedFeatures.attribute("header_w"))
+					            - standardizedFeatures.instance(queryDocInd2).value(standardizedFeatures.attribute("header_w"));					
+					instance[4] = standardizedFeatures.instance(queryDocInd1).value(standardizedFeatures.attribute("anchor_w"))
+					            - standardizedFeatures.instance(queryDocInd2).value(standardizedFeatures.attribute("anchor_w"));						
+					
+					String classLabel = "1"; // does not matter
+					
+					Instance inst = new DenseInstance(6);						
+				    inst.setDataset(myTestFeatures.features);
+				    int ind = 0;
+				    for(ind = 0 ; ind < instance.length; ind++ )
+				    	inst.setValue(ind, instance[ind]);					    				     
+				    inst.setValue(ind, classLabel); // does not matter 
+				    
+					myTestFeatures.features.add(inst);
+					twoURLSConcat = queryDocFeatureList.get(ind1).getFirst() + " " +  queryDocFeatureList.get(ind2).getFirst(); 
+					queryDocFeatureMap.put(twoURLSConcat, myTestFeatures.features.size()-1); 
+					
+				} 
 			myTestFeatures.index_map.put(q, queryDocFeatureMap); 
-		}
+		} 
+		
 		
 		return myTestFeatures;
 	}
 	
-	public double getScore(Instance inst, double weights[])
-	{ 
-		double score = 0.0;
-		
-	//	System.out.println("The model weights are" );
-		int weightInd = 0; 
-		for(weightInd = 0; weightInd< weights.length-1; weightInd++)
-		{ 
-		//	System.out.print(weights[i] + " ");
-			score += weights[weightInd] * inst.value(weightInd); 
-		}
-		score += weights[weightInd];  
-		
-		return score; 
-	}
+	
 	@Override
+	// will implement on pairwise features and use classifyInstance 
+	// that outputs a binary: the class/category of the pair. 
 	public Map<String, List<String>> testing(TestFeatures tf,
 			Classifier model) throws Exception {
 		/*
 		 * @TODO: Your code here
-		 */
+		 */		
 		
-		System.out.print("\n");
-		System.out.println( "C = "+ ((LibSVM)model).getCost()); 
-		double weights[] = ((LibSVM)model).coefficients(); 
 		Map<String,List<String>> ranked_queries = new HashMap<String, List<String>>(); 		
 		Instances test_dataset = tf.features; /* The dataset you built in Step 3 */
 		test_dataset.setClassIndex(test_dataset.numAttributes()-1);
-		double score;
+	/*	System.out.println("class attribute" + " " + test_dataset.classAttribute().value(0));
+	    System.out.println("class attribute" + " " + test_dataset.classAttribute().value(1));*/
+
+		// Go over every query in the test features
 		int queryDocInd = 0; 
-		Map<String, Integer> queryDocFeatureMap; 
+		 
 		for(String q: tf.index_map.keySet())
 		{ 
+			// 1. For every query, unfold the url pairs and put in url set of unique urls for this query
 		//	System.out.println("testing query: " + q); 
-			List<Pair<String,Double>> urlAndScores = new ArrayList<Pair<String,Double>>();
-			queryDocFeatureMap = tf.index_map.get(q);
-			for(String url: queryDocFeatureMap.keySet())
+			Set<String> urlSet = new LinkedHashSet<String>();
+			final Map<String, Integer> queryDocFeatureMap = tf.index_map.get(q);
+			for(String twoURLSConcat: queryDocFeatureMap.keySet())
 			{ 
-				queryDocInd = queryDocFeatureMap.get(url); 
-		//		System.out.print(queryDocInd+" "); 
-			//	score = model.classifyInstance(test_dataset.instance(queryDocInd));
-				score = getScore(test_dataset.instance(queryDocInd), weights); 
-			//	System.out.println("prediction " +  model.classifyInstance(test_dataset.instance(queryDocInd))); 
-				urlAndScores.add(new Pair<String, Double>(url, score)); 				
-			} 
+				String urlArray[] = twoURLSConcat.split(" "); 
+				urlSet.add(urlArray[0]); 
+				urlSet.add(urlArray[1]);
+			}
+			//2. turn the url set to a list
+			List<String> rankedUrl = new ArrayList<String>(urlSet);
+			
 		//	System.out.print("\n"); 
-			// Sort urls for query based on scores
-			Collections.sort(urlAndScores, new Comparator<Pair<String,Double>>() {
+			// 3. Sort the urls based on classifier output that compares each pair			
+			Collections.sort(rankedUrl, new Comparator<String>() {
 			@Override
-			public int compare(Pair<String, Double> o1, Pair<String, Double> o2) {
+			public int compare(String o1, String o2) {
 				/*
 				 * @//TODO : Your code here
 				 */
-				if (o2.getSecond().equals(o1.getSecond()))
-					return o1.getFirst().compareTo(o2.getFirst()); 
-				return o2.getSecond().compareTo(o1.getSecond());  
+				String twoURLSConcat1 = o1 + " " + o2;
+				String twoURLSConcat2 = o2 + " " + o1;
+				int queryDocInd = 0;
+				int check = 0; 
+				int flip = 1; 
+				if(queryDocFeatureMap.containsKey(twoURLSConcat1))
+				{ 
+					check++; 
+					queryDocInd = queryDocFeatureMap.get(twoURLSConcat1);
+				} 
+				if(queryDocFeatureMap.containsKey(twoURLSConcat2))
+				{ 
+					check++; 
+					queryDocInd = queryDocFeatureMap.get(twoURLSConcat2);
+					flip = -1; 
+				}
+									
+				// sanity check for debugging
+				if(check==0)
+					System.out.println("none found!!"); 
+				if(check==2)
+					System.out.println("both found");
+				
+				int classIndex = 0;
+				try {
+					 
+					classIndex = (int)model.classifyInstance(test_dataset.instance(queryDocInd));
+					 
+				} catch (Exception e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+				 				
+				classIndex = (classIndex + (1-flip)/2)%2; // if flip =1, ie no flip, keep classindex as it is, 
+														  // if flip = -1, 0 -- > 1 and 1 --> 0 
+				String classLabel = test_dataset.classAttribute().value(classIndex); 
+				
+				int comparisonResult = -Integer.parseInt(classLabel); // we want to sort in decreasing order
+				
+				return comparisonResult; 
 				
 			}	
 			});
 		
-			List<String> rankedUrl = new ArrayList<String>(); 
-			for(Pair<String, Double> urlScorePair: urlAndScores)
-			{ 
-				rankedUrl.add(urlScorePair.getFirst()); 
-			}
-		
+				
 			ranked_queries.put(q, rankedUrl); 
 		} 
 		
 		return ranked_queries;
 	}
+	
+	
+	//// ----------------CODE I AM NO MORE USING, WORKS only for linear SVM, as it is pointwise
+	
+	// works only for linear svm
+			// @Override
+			public TestFeatures pointWiseExtract_test_features(String test_data_file,
+					Map<String, Double> idfs) throws Exception {
+				/*
+				 * @TODO: Your code here
+				 */
+				// 1. Get the pointwise features  
+				Pair<Instances, Map <String, List<Pair<String, Integer>>>>  featuresANDindices = 
+						 extractPointWiseFeatures(test_data_file, idfs);
+				Instances pointWiseFeatures 					   = featuresANDindices.getFirst(); 
+				Map <String, List<Pair<String, Integer>>> indexMap = featuresANDindices.getSecond();  
+				
+				// 2. Standardize the pointwise features
+				Instances standardizedFeatures = standardizeFeatures(pointWiseFeatures); 
+				
+				// 3. put the result in TestFeatures object
+				TestFeatures myTestFeatures = new TestFeatures(); 
+				myTestFeatures.features = standardizedFeatures; 
+				myTestFeatures.index_map = new HashMap<String, Map<String, Integer>>(); 
+				
+				for (String q: indexMap.keySet())
+				{ 
+					Map<String, Integer> queryDocFeatureMap = new HashMap<String, Integer>(); 
+					for(int ind = 0; ind < indexMap.get(q).size(); ind++ )
+						queryDocFeatureMap.put(indexMap.get(q).get(ind).getFirst(), indexMap.get(q).get(ind).getSecond()); 
+					myTestFeatures.index_map.put(q, queryDocFeatureMap); 
+				}
+				
+				return myTestFeatures;
+			}
+		
+		// Be careful as we are getting this warning message: 
+		// LibSVM get coefficients: note that the sign might be negated. It's best to use the classifyInstance method.
+		public double getScore(Instance inst, double weights[])
+		{ 
+			double score = 0.0;
+			
+		//	System.out.println("The model weights are" );
+			int weightInd = 0; 
+			for(weightInd = 0; weightInd< weights.length-1; weightInd++)
+			{ 
+			//	System.out.print(weights[i] + " ");
+				score += weights[weightInd] * inst.value(weightInd); 
+			}
+			score += weights[weightInd];  // not necessary, it is a constant
+			
+			return score; 
+		}
+		//@Override
+		// pointWiseTesting: works for libSVM, by extracting the weights using coefficients and computing the dot product with the pointwise features
+		// in this case classifyInstance does not work as it is output is binary and is actually the class/category. 
+		public Map<String, List<String>> pointWiseTesting(TestFeatures tf,
+				Classifier model) throws Exception {
+			/*
+			 * @TODO: Your code here
+			 */
+			
+			System.out.print("\n");
+			System.out.println( "C = "+ ((LibSVM)model).getCost()); 
+			double weights[] = ((LibSVM)model).coefficients(); 
+			Map<String,List<String>> ranked_queries = new HashMap<String, List<String>>(); 		
+			Instances test_dataset = tf.features; /* The dataset you built in Step 3 */
+			test_dataset.setClassIndex(test_dataset.numAttributes()-1);
+			double score;
+			int queryDocInd = 0; 
+			Map<String, Integer> queryDocFeatureMap; 
+			for(String q: tf.index_map.keySet())
+			{ 
+			//	System.out.println("testing query: " + q); 
+				List<Pair<String,Double>> urlAndScores = new ArrayList<Pair<String,Double>>();
+				queryDocFeatureMap = tf.index_map.get(q);
+				for(String url: queryDocFeatureMap.keySet())
+				{ 
+					queryDocInd = queryDocFeatureMap.get(url); 
+			//		System.out.print(queryDocInd+" "); 
+				//	score = model.classifyInstance(test_dataset.instance(queryDocInd));
+					score = getScore(test_dataset.instance(queryDocInd), weights); 
+				//	System.out.println("prediction " +  model.classifyInstance(test_dataset.instance(queryDocInd))); 
+					urlAndScores.add(new Pair<String, Double>(url, score)); 				
+				} 
+			//	System.out.print("\n"); 
+				// Sort urls for query based on scores
+				Collections.sort(urlAndScores, new Comparator<Pair<String,Double>>() {
+				@Override
+				public int compare(Pair<String, Double> o1, Pair<String, Double> o2) {
+					/*
+					 * @//TODO : Your code here
+					 */
+					if (o2.getSecond().equals(o1.getSecond()))
+						return o1.getFirst().compareTo(o2.getFirst()); 
+					return o2.getSecond().compareTo(o1.getSecond());  
+					
+				}	
+				});
+			
+				List<String> rankedUrl = new ArrayList<String>(); 
+				for(Pair<String, Double> urlScorePair: urlAndScores)
+				{ 
+					rankedUrl.add(urlScorePair.getFirst()); 
+				}
+			
+				ranked_queries.put(q, rankedUrl); 
+			} 
+			
+			return ranked_queries;
+		}
 
 }
