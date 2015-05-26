@@ -18,47 +18,8 @@ import weka.core.Instances;
 public class PointwiseLearner extends Learner 
 {
 	
-	private double[] getInstanceVector(Map<String, Map<String, Double>> tfVectors, Map<String, Double> idfVector)
-	{
-		double[] instance = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
-
-		// Iterate over tf vectors, and calculate field tf-idf
-		for (String type : tfVectors.keySet())
-		{
-			Double score = scorer.dotVectors(tfVectors.get(type), idfVector);
-			
-			// "url","title","body","header","anchor"
-			if (type.equals("url"))
-			{
-				instance[0] = score;
-			}
-			else if (type.equals("title"))
-			{
-				instance[1] = score;
-			}
-			else if (type.equals("body"))
-			{
-				instance[2] = score;
-			}
-			else if (type.equals("header"))
-			{
-				instance[3] = score;
-			}
-			else if (type.equals("anchor"))
-			{
-				instance[4] = score;
-			}
-			else
-			{
-				throw new RuntimeException("Unsupported type in PointwiseLearner.");
-			}
-		}
-		
-		return instance;
-	}
-
 	@Override
-	public Instances extract_train_features(String train_data_file, String train_rel_file, Map<String, Double> idfs) 
+	public Instances extract_train_features(String train_data_file, String train_rel_file) 
 	{
 		
 		/*
@@ -108,10 +69,7 @@ public class PointwiseLearner extends Learner
 			List<Document> docs = queryMap.get(query);
 			for (Document doc : docs)
 			{
-				Map<String, Map<String, Double>> tfVectors = scorer.getDocTermFreqs(doc, query);
-				Map<String, Double> idfVector = Util.getIDFVector(query, idfs);
-				
-				double[] instance = getInstanceVector(tfVectors, idfVector);
+				double[] instance = getTFIDFVector(doc, query);
 					
 				// ADD RELEVANCE SCORE (TARGET VARIABLE) HERE.
 				instance[5] = relMap.get(query.query).get(doc.url);
@@ -147,7 +105,7 @@ public class PointwiseLearner extends Learner
 
 	
 	@Override
-	public TestFeatures extract_test_features(String test_data_file, Map<String, Double> idfs) 
+	public TestFeatures extract_test_features(String test_data_file) 
 	{
 		/*
 		 * @TODO: Your code here
@@ -192,10 +150,7 @@ public class PointwiseLearner extends Learner
 			List<Document> docs = queryMap.get(query);
 			for (Document doc : docs)
 			{
-				Map<String, Map<String, Double>> tfVectors = scorer.getDocTermFreqs(doc, query);
-				Map<String, Double> idfVector = Util.getIDFVector(query, idfs);
-				
-				double[] instance = getInstanceVector(tfVectors, idfVector);
+				double[] instance = getTFIDFVector(doc, query);
 				
 				Instance inst = new DenseInstance(1.0, instance); 
 				testFeatures.features.add(inst);

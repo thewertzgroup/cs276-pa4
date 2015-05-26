@@ -50,9 +50,11 @@ public class Learning2Rank
 			System.err.println("Extra credit");
 
 		}
+		
+		learner.setIDFs(idfs);
 
 		/* Step (1): construct your feature matrix here */
-		Instances data = learner.extract_train_features(train_data_file, train_rel_file, idfs);
+		Instances data = learner.extract_train_features(train_data_file, train_rel_file);
 
 		/* Step (2): implement your learning algorithm here */
 		model = learner.training(data);
@@ -96,9 +98,11 @@ public class Learning2Rank
 			System.err.println("Extra credit");
 
 		}
+		
+		learner.setIDFs(idfs);
 
 		/* Step (1): construct your test feature matrix here */
-		TestFeatures tf = learner.extract_test_features(test_data_file, idfs);
+		TestFeatures tf = learner.extract_test_features(test_data_file);
 
 		/* Step (2): implement your prediction and ranking code here */
 		rankedQueries = learner.testing(tf, model);
