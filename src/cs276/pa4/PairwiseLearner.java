@@ -2,6 +2,7 @@ package cs276.pa4;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -64,6 +65,9 @@ public class PairwiseLearner extends Learner
 
 	private TestFeatures extract_dataset(String data_file, String relevance_file)
 	{
+		TestFeatures testFeatures = new TestFeatures();
+		testFeatures.index_map = new HashMap<>();
+		
 		Instances dataset = null;
 		
 		/* Build attributes list */
@@ -76,7 +80,7 @@ public class PairwiseLearner extends Learner
 
 		String[] labels = {"-1", "1"};
 		attributes.add(new Attribute("class", Arrays.asList(labels)));
-		dataset = new Instances("train_dataset", attributes, 0);
+		dataset = new Instances(relevance_file != null ? "train_dataset" : "test_dataset", attributes, 0);
 		
 		/* Set last attribute as target */
 		dataset.setClassIndex(dataset.numAttributes() - 1);
@@ -102,81 +106,86 @@ public class PairwiseLearner extends Learner
 		}
 		
 		// Iterate over queries / document pairs and compute five-dimensional training vectors.
-		int positive = 0;
-		int negative = 0;
+		int    positive = 0;
+		int    negative = 0;
+		int         rel = 0;
+		double     iRel = 0.0;
+		double     jRel = 0.0;
 		for (Query query : queryMap.keySet())
 		{
+			// Maps the URL pair to the row index of the test matrix to retrieve for prediction.
+			Map<String, Integer> urlIndexMap = new HashMap<>(); 
+
 			List<Document> docs = queryMap.get(query);
 			for (int i=0; i<docs.size(); i++)
 			{
 				for (int j=i+1; j<docs.size(); j++)
 				{
-					double iRel = relMap.get(query.query).get(docs.get(i).url);
-					double jRel = relMap.get(query.query).get(docs.get(j).url);
+					if (relMap != null)
+					{
+						iRel = relMap.get(query.query).get(docs.get(i).url);
+						jRel = relMap.get(query.query).get(docs.get(j).url);
+					}
 					
 					// Do not make pairwise ranking facts out of either pairs 
 					// of documents with the same relevance score.
-					if (iRel == jRel) continue;
+					if (relMap != null && iRel == jRel) continue;
 					
 					double[] iInstance = getTFIDFVector(docs.get(i), query);
 					double[] jInstance = getTFIDFVector(docs.get(j), query);
 					
 					double[] instance = subtractArrays(iInstance, jInstance);
 
-					int rel = (int)Math.signum(iRel - jRel);
-					if ((rel < 0 && positive < negative) || (rel > 0 && positive > negative))
+					if (relMap != null)
 					{
-						rel *= -1;
-						negateArray(instance);
+						rel = (int)Math.signum(iRel - jRel);
+						if ((rel < 0 && positive < negative) || (rel > 0 && positive > negative))
+						{
+							rel *= -1;
+							negateArray(instance);
+						}
+						
+						if (rel > 0) positive++;
+						if (rel < 0) negative++;
+						if (rel == 0) throw new RuntimeException("'0' relevance when lable should be '-1' or '1'.");
 					}
-					
-					if (rel > 0) positive++;
-					if (rel < 0) negative++;
-					if (rel == 0) throw new RuntimeException("'0' relevance when lable should be '-1' or '1'.");
 
 					Instance inst = new DenseInstance(6);					
 				    inst.setDataset(dataset);
 				    copyArray(inst, instance);
-					String label = Integer.toString(rel);
-				    inst.setValue(5, label); 
+				    
+				    if (relMap != null)
+				    {
+						String label = Integer.toString(rel);
+					    inst.setValue(5, label); 
+				    }
 				    
 					dataset.add(inst);
+					
+					urlIndexMap.put(docs.get(i).url + " " + docs.get(j).url, dataset.size()-1);
 				}
 			}
+			
+			testFeatures.index_map.put(query.query,  urlIndexMap);
 		}
 		
 		System.err.println("\nDataset:\n\n" + dataset);
 		
-		Instances standardizedDataset = null;
 		Standardize filter = new Standardize();	  
 		try {
 			filter.setInputFormat(dataset);
-			standardizedDataset = Filter.useFilter(dataset, filter);
+			testFeatures.features = Filter.useFilter(dataset, filter);
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 
-		System.err.println("\nStandardized Dataset:\n\n" + standardizedDataset);
-		
-		TestFeatures testFeatures = new TestFeatures();
-		testFeatures.features = standardizedDataset;
+		System.err.println("\nStandardized Dataset:\n\n" + testFeatures.features);
 		
 		return testFeatures;
-
 	}
 
 
-	@Override
-	public Instances extract_train_features(String train_data_file, String train_rel_file) 
-	{
-		/*
-		 * @TODO: Your code here
-		 */
-		return extract_dataset(train_data_file, train_rel_file).features;
-	}
-
-	
 	private void copyArray(Instance inst, double[] instance) 
 	{
 	    for(int i = 0; i < instance.length; i++)
@@ -205,6 +214,17 @@ public class PairwiseLearner extends Learner
 
 	
 	@Override
+	public Instances extract_train_features(String train_data_file, String train_rel_file) 
+	{
+		/*
+		 * @TODO: Your code here
+		 */
+		
+		return extract_dataset(train_data_file, train_rel_file).features;
+	}
+
+	
+	@Override
 	public Classifier training(Instances dataset) 
 	{
 		/*
@@ -223,15 +243,18 @@ public class PairwiseLearner extends Learner
 		return model;
 	}
 
+	
 	@Override
 	public TestFeatures extract_test_features(String test_data_file) 
 	{
 		/*
 		 * @TODO: Your code here
 		 */
+		
 		return extract_dataset(test_data_file);
 	}
 
+	
 	@Override
 	public Map<String, List<String>> testing(TestFeatures tf, Classifier model) 
 	{

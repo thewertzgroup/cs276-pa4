@@ -27,6 +27,7 @@ public class PointwiseLearner extends Learner
 	private TestFeatures extract_dataset(String data_file, String relevance_file)
 	{
 		TestFeatures testFeatures = new TestFeatures();
+		testFeatures.index_map = new HashMap<>();
 		
 		/* Build attributes list */
 		ArrayList<Attribute> attributes = new ArrayList<Attribute>();
@@ -38,7 +39,6 @@ public class PointwiseLearner extends Learner
 		attributes.add(new Attribute("relevance_score"));
 		
 		testFeatures.features = new Instances(relevance_file != null ? "train_dataset" : "test_dataset", attributes, 0);
-		testFeatures.index_map = new HashMap<>();
 		
 		if (relevance_file != null)
 		{
