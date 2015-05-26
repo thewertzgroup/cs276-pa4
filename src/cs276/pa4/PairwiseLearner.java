@@ -54,13 +54,16 @@ public class PairwiseLearner extends Learner
 			model.setKernelType(new SelectedTag(LibSVM.KERNELTYPE_LINEAR, LibSVM.TAGS_KERNELTYPE));
 		}
 	}
-
-	@Override
-	public Instances extract_train_features(String train_data_file, String train_rel_file) 
+	
+	
+	private TestFeatures extract_dataset(String data_file)
 	{
-		/*
-		 * @TODO: Your code here
-		 */
+		return extract_dataset(data_file, null);
+	}
+
+
+	private TestFeatures extract_dataset(String data_file, String relevance_file)
+	{
 		Instances dataset = null;
 		
 		/* Build attributes list */
@@ -83,8 +86,8 @@ public class PairwiseLearner extends Learner
 		Map<String, Map<String, Double>> relMap = null;
 		try 
 		{
-			queryMap = Util.loadTrainData(train_data_file);
-			relMap 	 = Util.loadRelData(train_rel_file);
+			queryMap = Util.loadTrainData(data_file);
+			relMap 	 = relevance_file != null ? Util.loadRelData(relevance_file) : null;
 		} 
 		catch (Exception e) 
 		{
@@ -156,7 +159,21 @@ public class PairwiseLearner extends Learner
 
 		System.err.println("\nStandardized Dataset:\n\n" + standardizedDataset);
 		
-		return standardizedDataset;
+		TestFeatures testFeatures = new TestFeatures();
+		testFeatures.features = standardizedDataset;
+		
+		return testFeatures;
+
+	}
+
+
+	@Override
+	public Instances extract_train_features(String train_data_file, String train_rel_file) 
+	{
+		/*
+		 * @TODO: Your code here
+		 */
+		return extract_dataset(train_data_file, train_rel_file).features;
 	}
 
 	
@@ -212,7 +229,7 @@ public class PairwiseLearner extends Learner
 		/*
 		 * @TODO: Your code here
 		 */
-		return null;
+		return extract_dataset(test_data_file);
 	}
 
 	@Override

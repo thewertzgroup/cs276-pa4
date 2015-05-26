@@ -18,17 +18,15 @@ import weka.core.Instances;
 public class PointwiseLearner extends Learner 
 {
 	
-	@Override
-	public Instances extract_train_features(String train_data_file, String train_rel_file) 
+	private TestFeatures extract_dataset(String data_file)
 	{
-		
-		/*
-		 * @TODO: Below is a piece of sample code to show 
-		 * you the basic approach to construct a Instances 
-		 * object, replace with your implementation. 
-		 */
-		
-		Instances dataset = null;
+		return extract_dataset(data_file, null);
+	}
+
+
+	private TestFeatures extract_dataset(String data_file, String relevance_file)
+	{
+		TestFeatures testFeatures = new TestFeatures();
 		
 		/* Build attributes list */
 		ArrayList<Attribute> attributes = new ArrayList<Attribute>();
@@ -38,18 +36,24 @@ public class PointwiseLearner extends Learner
 		attributes.add(new Attribute("header_w"));
 		attributes.add(new Attribute("anchor_w"));
 		attributes.add(new Attribute("relevance_score"));
-		dataset = new Instances("train_dataset", attributes, 0);
 		
-		/* Set last attribute as target */
-		dataset.setClassIndex(dataset.numAttributes() - 1);
+		testFeatures.features = new Instances(relevance_file != null ? "train_dataset" : "test_dataset", attributes, 0);
+		testFeatures.index_map = new HashMap<>();
 		
+		if (relevance_file != null)
+		{
+			/* Set last attribute as target */
+			testFeatures.features.setClassIndex(testFeatures.features.numAttributes() - 1);
+
+		}
+
 		/* Add data */
 		Map<Query,List<Document>> queryMap = null;
 		Map<String, Map<String, Double>> relMap = null;
 		try 
 		{
-			queryMap = Util.loadTrainData(train_data_file);
-			relMap 	 = Util.loadRelData(train_rel_file);
+			queryMap = Util.loadTrainData(data_file);
+			relMap 	 = relevance_file != null ? Util.loadRelData(relevance_file) : null;
 		} 
 		catch (Exception e) 
 		{
@@ -63,23 +67,45 @@ public class PointwiseLearner extends Learner
 			scorer = new BM25Scorer(idfs, queryMap);
 		}
 		
-		// Iterate over queries / documents and compute five-dimensional vector of tf-idf scores.	
 		for (Query query : queryMap.keySet())
 		{
+			// Maps the URL to the row index of the test matrix to retrieve for prediction.
+			Map<String, Integer> urlIndexMap = new HashMap<>(); 
+
 			List<Document> docs = queryMap.get(query);
 			for (Document doc : docs)
 			{
 				double[] instance = getTFIDFVector(doc, query);
-					
-				// ADD RELEVANCE SCORE (TARGET VARIABLE) HERE.
-				instance[5] = relMap.get(query.query).get(doc.url);
+				
+				if (relMap != null)
+				{
+					// ADD RELEVANCE SCORE (TARGET VARIABLE) HERE.
+					instance[5] = relMap.get(query.query).get(doc.url);
+				}
 				
 				Instance inst = new DenseInstance(1.0, instance); 
-				dataset.add(inst);
+				testFeatures.features.add(inst);
+				
+				urlIndexMap.put(doc.url, testFeatures.features.size()-1);
 			}
+			
+			testFeatures.index_map.put(query.query,  urlIndexMap);
 		}
+
+		return testFeatures;
+	}
+	
+	@Override
+	public Instances extract_train_features(String train_data_file, String train_rel_file) 
+	{
 		
-		return dataset;
+		/*
+		 * @TODO: Below is a piece of sample code to show 
+		 * you the basic approach to construct a Instances 
+		 * object, replace with your implementation. 
+		 */
+				
+		return extract_dataset(train_data_file, train_rel_file).features;
 	}
 
 	
@@ -110,58 +136,8 @@ public class PointwiseLearner extends Learner
 		/*
 		 * @TODO: Your code here
 		 */
-		TestFeatures testFeatures = new TestFeatures();
-		
-		/* Build attributes list */
-		ArrayList<Attribute> attributes = new ArrayList<Attribute>();
-		attributes.add(new Attribute("url_w"));
-		attributes.add(new Attribute("title_w"));
-		attributes.add(new Attribute("body_w"));
-		attributes.add(new Attribute("header_w"));
-		attributes.add(new Attribute("anchor_w"));
-		attributes.add(new Attribute("relevance_score"));
-		
-		testFeatures.features = new Instances("test_dataset", attributes, 0);
-		testFeatures.index_map = new HashMap<>(); 
-
-		/* Add data */
-		Map<Query,List<Document>> queryMap = null;
-		try 
-		{
-			queryMap = Util.loadTrainData(test_data_file);
-		} 
-		catch (Exception e) 
-		{
-			e.printStackTrace();
-			throw new RuntimeException("Unable to load signal test data.", e);
-		}
-		
-		// Iterate over queries / documents and compute five-dimensional vector of tf-idf scores.
-		if (null == scorer)
-		{
-			scorer = new BM25Scorer(idfs, queryMap);
-		}
-		
-		for (Query query : queryMap.keySet())
-		{
-			// Maps the URL to the row index of the test matrix to retrieve for prediction.
-			Map<String, Integer> urlIndexMap = new HashMap<>(); 
-
-			List<Document> docs = queryMap.get(query);
-			for (Document doc : docs)
-			{
-				double[] instance = getTFIDFVector(doc, query);
-				
-				Instance inst = new DenseInstance(1.0, instance); 
-				testFeatures.features.add(inst);
-				
-				urlIndexMap.put(doc.url, testFeatures.features.size()-1);
-			}
-			
-			testFeatures.index_map.put(query.query,  urlIndexMap);
-		}
-
-		return testFeatures;
+	
+		return extract_dataset(test_data_file);
 	}
 
 	

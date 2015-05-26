@@ -22,7 +22,6 @@ public abstract class Learner {
 		return this.idfs;
 	}
 
-	
 	protected double[] getTFIDFVector(Document doc, Query query)
 	{
 		Map<String, Map<String, Double>> tfVectors = scorer.getDocTermFreqs(doc, query);
