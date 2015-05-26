@@ -12,6 +12,8 @@ import weka.core.DenseInstance;
 import weka.core.Instance;
 import weka.core.Instances;
 import weka.core.SelectedTag;
+import weka.filters.Filter;
+import weka.filters.unsupervised.attribute.Standardize;
 
 public class PairwiseLearner extends Learner 
 {
@@ -139,7 +141,22 @@ public class PairwiseLearner extends Learner
 				}
 			}
 		}
-		return dataset;
+		
+		System.err.println("\nDataset:\n\n" + dataset);
+		
+		Instances standardizedDataset = null;
+		Standardize filter = new Standardize();	  
+		try {
+			filter.setInputFormat(dataset);
+			standardizedDataset = Filter.useFilter(dataset, filter);
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		System.err.println("\nStandardized Dataset:\n\n" + standardizedDataset);
+		
+		return standardizedDataset;
 	}
 
 	
