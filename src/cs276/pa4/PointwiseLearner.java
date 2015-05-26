@@ -18,7 +18,35 @@ import weka.core.Instances;
 import weka.classifiers.functions.LinearRegression;
 
 public class PointwiseLearner extends Learner {
-
+	
+	private ArrayList<Attribute> attributes = new ArrayList<Attribute>();
+	public PointwiseLearner() {
+		super(false, false, false); 
+	  	attributes.add(new Attribute("url_w"));
+	  	attributes.add(new Attribute("title_w"));
+	  	attributes.add(new Attribute("body_w"));
+	  	attributes.add(new Attribute("header_w"));
+	  	attributes.add(new Attribute("anchor_w"));
+	}
+	public PointwiseLearner(boolean withBM25, boolean withSmallestWindow, boolean withPageRank) {
+		super(withBM25, withSmallestWindow, withPageRank); 
+	  	attributes.add(new Attribute("url_w"));
+	  	attributes.add(new Attribute("title_w"));
+	  	attributes.add(new Attribute("body_w"));
+	  	attributes.add(new Attribute("header_w"));
+	  	attributes.add(new Attribute("anchor_w"));
+	  	if(withBM25)	  	
+	  		attributes.add(new Attribute("bm25_w"));
+	  		
+	  	if(withSmallestWindow)
+	  		attributes.add(new Attribute("smallWindow_w"));
+	
+	  	if(withPageRank)
+	  		attributes.add(new Attribute("pageRank_w"));
+	  	
+	  		
+	}
+	
 	@Override
 	public Instances extract_train_features(String train_data_file,
 			String train_rel_file, Map<String, Double> idfs) throws Exception {
@@ -32,14 +60,9 @@ public class PointwiseLearner extends Learner {
 		Instances dataset = null;
 		
 		/* Build attributes list */
-		ArrayList<Attribute> attributes = new ArrayList<Attribute>();
-		attributes.add(new Attribute("url_w"));
-		attributes.add(new Attribute("title_w"));
-		attributes.add(new Attribute("body_w"));
-		attributes.add(new Attribute("header_w"));
-		attributes.add(new Attribute("anchor_w"));
-		attributes.add(new Attribute("relevance_score"));
-		dataset = new Instances("train_dataset", attributes, 0);
+	  	ArrayList<Attribute> point_attributes = new ArrayList<Attribute>(attributes);	  	
+	  	point_attributes.add(new Attribute("relevance_score"));	  	
+		dataset = new Instances("train_dataset", point_attributes, 0);
 		/* Set last attribute as target */
 		dataset.setClassIndex(dataset.numAttributes() - 1);
 		
@@ -48,23 +71,41 @@ public class PointwiseLearner extends Learner {
 		Map<String, Map<String, Double>> relevanceDict = Util.loadRelData(train_rel_file); 
 		// create a scorer to extract features
 		AScorer extractor = new tf_idfExtractor(idfs);
-		Map<String, Double> tf_idfs; 
+		AScorer bm25Scorer = null; 
+		AScorer smallWindowScorer = null; 
+		if(withBM25)
+			bm25Scorer = new BM25Scorer(idfs, queryDict);
+		if(withSmallestWindow)
+			smallWindowScorer = new SmallestWindowScorer(idfs, queryDict); 
+		Map<String, Double> tf_idfs, bm25, smallestWindow; 
 		// go over every (query, document) instance in the training data, compute the features, and add it to the data set	
 		for (Query query : queryDict.keySet()) {
 			Map<String, Double> queryRelMap = relevanceDict.get(query.query);			 
 			// Loop through the documents for query, getting scores
 			for (Document doc : queryDict.get(query)) {
 				// for this query document pair 
+				Instance inst = new DenseInstance(1+attributes.size());						
+			    inst.setDataset(dataset);
 				// 1. get the tf-idf features for every one of the five fields 
 				tf_idfs = extractor.getFeatures(doc, query);
-				double[] instance = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
 				int fieldInd = 0; 
 				for(String field: tf_idfs.keySet())
-					instance[fieldInd++] = tf_idfs.get(field); 
-				// 2. Get the relevance score				
-				instance[5] = queryRelMap.get(doc.url); 
+					inst.setValue(fieldInd++,tf_idfs.get(field)); 
+				if(withBM25)
+				{
+					bm25 = bm25Scorer.getFeatures(doc, query); 
+					inst.setValue(fieldInd++, bm25.get("bm25")); 
+				} 
+				if(withSmallestWindow)
+				{ 
+					smallestWindow = smallWindowScorer.getFeatures(doc, query); 
+					inst.setValue(fieldInd++, smallestWindow.get("smallWindow")); 
+				}
+				if(withPageRank)
+					inst.setValue(fieldInd++, (double)doc.page_rank);
+				// 2. Get the relevance score	
+				 inst.setValue(fieldInd, queryRelMap.get(doc.url)); // does not matter 				
 				// 3. add the data instance for this query document pair to the data set				
-				Instance inst = new DenseInstance(1.0, instance); 
 				dataset.add(inst);
 			}
 		}								
@@ -92,21 +133,25 @@ public class PointwiseLearner extends Learner {
 		TestFeatures myTestFeatures = new TestFeatures();
 		
 		/* Build attributes list */
-		ArrayList<Attribute> attributes = new ArrayList<Attribute>();
-		attributes.add(new Attribute("url_w"));
-		attributes.add(new Attribute("title_w"));
-		attributes.add(new Attribute("body_w"));
-		attributes.add(new Attribute("header_w"));
-		attributes.add(new Attribute("anchor_w"));
-		attributes.add(new Attribute("relevance_score"));
-		myTestFeatures.features = new Instances("test_dataset", attributes, 0);
+	  	ArrayList<Attribute> point_attributes = new ArrayList<Attribute>(attributes);
+	  	point_attributes.add(new Attribute("relevance_score"));	  			
+		myTestFeatures.features = new Instances("test_dataset", point_attributes, 0);
 		myTestFeatures.index_map = new HashMap<String, Map<String, Integer>>(); 
 		
 		// load the training and the relevance score data
 		Map<Query,List<Document>> queryDict = Util.loadTrainData(test_data_file);
 		// create a scorer to extract features
 		AScorer extractor = new tf_idfExtractor(idfs);
-		Map<String, Double> tf_idfs; 
+		AScorer bm25Scorer = null; 
+		AScorer smallWindowScorer = null; 
+		if(withBM25)
+			bm25Scorer = new BM25Scorer(idfs, queryDict);
+
+		if(withSmallestWindow)
+			smallWindowScorer = new SmallestWindowScorer(idfs, queryDict);
+
+		
+		Map<String, Double> tf_idfs, bm25, smallestWindow; 
 		// go over every (query, document) instance in the training data, compute the features, and add it to the data set
 		for (Query query : queryDict.keySet()) {
 		//	System.out.println("query: " + query.query);
@@ -114,19 +159,28 @@ public class PointwiseLearner extends Learner {
 			// Loop through the documents for query, getting scores
 			for (Document doc : queryDict.get(query)) {
 				// for this query document pair 
+				Instance inst = new DenseInstance(1+attributes.size());						
+			    inst.setDataset(myTestFeatures.features);
 				// 1. get the tf-idf features for every one of the five fields 
 				tf_idfs = extractor.getFeatures(doc, query);
-				double[] instance = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
-				int fieldInd = 0; 
+			    int fieldInd = 0; 
 				for(String field: tf_idfs.keySet())
-					instance[fieldInd++] = tf_idfs.get(field);
-	
-	
+					inst.setValue(fieldInd++,tf_idfs.get(field)); 
+				if(withBM25)
+				{
+					bm25 = bm25Scorer.getFeatures(doc, query); 
+					inst.setValue(fieldInd++, bm25.get("bm25")); 
+				} 
+				if(withSmallestWindow)
+				{ 
+					smallestWindow = smallWindowScorer.getFeatures(doc, query); 
+					inst.setValue(fieldInd++, smallestWindow.get("smallWindow")); 
+				}
+				if(withPageRank)
+					inst.setValue(fieldInd++, (double)doc.page_rank);
+				inst.setValue(fieldInd, 1.0); // does not matter				
 								
-				// 2. add the data instance for this query document pair to the data set				
-				Instance inst = new DenseInstance(1.0, instance); 
-				
-				
+				// 2. add the data instance for this query document pair to the data set								
 				myTestFeatures.features.add(inst);
 		//		System.out.print((myTestFeatures.features.size()-1) + " "); 
 				queryDocFeatureMap.put(doc.url, myTestFeatures.features.size()-1); 								
@@ -185,11 +239,11 @@ public class PointwiseLearner extends Learner {
 		
 			ranked_queries.put(q, rankedUrl); 
 		} 
-		double weights[] = ((LinearRegression)model).coefficients(); 
+	/*	double weights[] = ((LinearRegression)model).coefficients(); 
 		System.out.println("The model weights are" );
 		for(int i = 0; i< weights.length; i++)
 			System.out.print(weights[i] + " ");
-		System.out.print("\n");
+		System.out.print("\n");*/
 		return ranked_queries;
 	}
 

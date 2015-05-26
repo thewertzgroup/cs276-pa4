@@ -29,6 +29,33 @@ public class PairwiseLearner extends Learner {
   private ArrayList<Attribute> attributes = new ArrayList<Attribute>();
   final String [] classLabels = {"-1", "1"}; 
   public PairwiseLearner(boolean isLinearKernel){
+		super(false, false, false);
+	    try{
+	      model = new LibSVM();
+	     //0. Build the attributes
+	   	 /* Build attributes list */
+	  	
+	  	 attributes.add(new Attribute("url_w"));
+	  	 attributes.add(new Attribute("title_w"));
+	  	 attributes.add(new Attribute("body_w"));
+	  	 attributes.add(new Attribute("header_w"));
+	  	 attributes.add(new Attribute("anchor_w"));
+
+	  	 
+	  	
+
+	    } catch (Exception e){
+	      e.printStackTrace();
+	    }
+	    
+	     
+	    if(isLinearKernel){
+	      model.setKernelType(new SelectedTag(LibSVM.KERNELTYPE_LINEAR, LibSVM.TAGS_KERNELTYPE));
+	    }
+	    
+	  }
+  public PairwiseLearner(boolean isLinearKernel, boolean withBM25, boolean withSmallestWindow, boolean withPageRank){
+	super(withBM25, withSmallestWindow, withPageRank);
     try{
       model = new LibSVM();
      //0. Build the attributes
@@ -40,7 +67,12 @@ public class PairwiseLearner extends Learner {
   	 attributes.add(new Attribute("header_w"));
   	 attributes.add(new Attribute("anchor_w"));
   	 
-  	 
+  	if(withBM25)
+  		attributes.add(new Attribute("bm25_w"));
+  	if(withSmallestWindow)
+  		attributes.add(new Attribute("smallWindow_w"));
+  	if(withPageRank)
+  		attributes.add(new Attribute("pageRank_w"));
   	
 
     } catch (Exception e){
@@ -54,7 +86,8 @@ public class PairwiseLearner extends Learner {
     
   }
   
-  public PairwiseLearner(double C, double gamma, boolean isLinearKernel){
+  public PairwiseLearner(double C, double gamma, boolean isLinearKernel,  boolean withBM25, boolean withSmallestWindow, boolean withPageRank){
+	super(withBM25, withSmallestWindow, withPageRank);
     try{
       model = new LibSVM();
       //0. Build the attributes
@@ -65,7 +98,12 @@ public class PairwiseLearner extends Learner {
    	  attributes.add(new Attribute("body_w"));
    	  attributes.add(new Attribute("header_w"));
    	  attributes.add(new Attribute("anchor_w"));
-   	  
+  	  if(withBM25)
+  		attributes.add(new Attribute("bm25_w"));
+  	  if(withSmallestWindow)
+  		attributes.add(new Attribute("smallWindow_w"));
+  	  if(withPageRank)
+  		attributes.add(new Attribute("pageRank_w"));
 
     } catch (Exception e){
       e.printStackTrace();
@@ -115,7 +153,15 @@ public class PairwiseLearner extends Learner {
 			relevanceDict = Util.loadRelData(train_rel_file); 
 		// create a scorer to extract features
 		AScorer extractor = new tf_idfExtractor(idfs);
-		Map<String, Double> tf_idfs;
+		AScorer bm25Scorer = null; 
+		AScorer smallWindowScorer = null; 
+		if(withBM25)		
+			bm25Scorer = new BM25Scorer(idfs, queryDict);					
+		if(withSmallestWindow)		
+			smallWindowScorer = new SmallestWindowScorer(idfs, queryDict);
+			
+		Map<String, Double> tf_idfs, bm25, smallestWindow; 
+		
 		Map<String, Double> queryRelMap = null;
 		// go over every (query, document) instance in the training data, compute the features, and add it to the data set	
 		for (Query query : queryDict.keySet()) {
@@ -124,18 +170,32 @@ public class PairwiseLearner extends Learner {
 			List<Pair<String, Integer>> queryDocFeatureList = new ArrayList<Pair<String, Integer>>();  
 			// Loop through the documents for query, getting scores
 			for (Document doc : queryDict.get(query)) {
-				// for this query document pair 
+				// for this query document pair
+				Instance inst = new DenseInstance(1+attributes.size());						
+			    inst.setDataset(pointWiseFeatures);				
 				// 1. get the tf-idf features for every one of the five fields 
-				tf_idfs = extractor.getFeatures(doc, query);
-				double[] instance = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
+				tf_idfs = extractor.getFeatures(doc, query);				
 				int fieldInd = 0; 
 				for(String field: tf_idfs.keySet())
-					instance[fieldInd++] = tf_idfs.get(field); 
-				// 2. Get the relevance score				
+					inst.setValue(fieldInd++, tf_idfs.get(field)); 
+				if(withBM25)
+				{
+					bm25 = bm25Scorer.getFeatures(doc, query); 
+					inst.setValue(fieldInd++, bm25.get("bm25")); 
+				} 
+				if(withSmallestWindow)
+				{ 
+					smallestWindow = smallWindowScorer.getFeatures(doc, query); 
+					inst.setValue(fieldInd++, smallestWindow.get("smallWindow")); 
+				}
+				if(withPageRank)
+					inst.setValue(fieldInd++, (double)doc.page_rank);
+				// 2. Get the relevance score
+				inst.setValue(fieldInd, 1.0); // leave it as 1 for test set, it does not matter
 				if(!train_rel_file.equals(""))
-					instance[5] = queryRelMap.get(doc.url); 
-				// 3. add the data instance for this query document pair to the data set				
-				Instance inst = new DenseInstance(1.0, instance); 
+					inst.setValue(fieldInd, queryRelMap.get(doc.url));
+				
+				// 3. add the data instance for this query document pair to the data set								
 				pointWiseFeatures.add(inst);
 				queryDocFeatureList.add(new Pair<String, Integer>(doc.url, pointWiseFeatures.size()-1)); 	
 			}
@@ -191,7 +251,7 @@ public class PairwiseLearner extends Learner {
 					if(relevance1!=relevance2)
 					{ 	
 		
-						double[] instance = {1.0, 1.0, 1.0, 1.0, 1.0};
+						double[] instance = new double[attributes.size()];
 						label = (int)Math.signum(relevance1 - relevance2);
 						
 						//balance the features: negative and positive instances must be balanced
@@ -199,24 +259,16 @@ public class PairwiseLearner extends Learner {
 							flip = -1; 
 						else 
 							flip = 1; 
-						
-						instance[0] = flip * ( standardizedFeatures.instance(queryDocInd1).value(standardizedFeatures.attribute("url_w"))
-								             - standardizedFeatures.instance(queryDocInd2).value(standardizedFeatures.attribute("url_w")));
-						instance[1] = flip * ( standardizedFeatures.instance(queryDocInd1).value(standardizedFeatures.attribute("title_w"))
-							                 - standardizedFeatures.instance(queryDocInd2).value(standardizedFeatures.attribute("title_w")));
-						instance[2] = flip * ( standardizedFeatures.instance(queryDocInd1).value(standardizedFeatures.attribute("body_w"))
-							                 - standardizedFeatures.instance(queryDocInd2).value(standardizedFeatures.attribute("body_w")));
-						instance[3] = flip * ( standardizedFeatures.instance(queryDocInd1).value(standardizedFeatures.attribute("header_w"))
-						                     - standardizedFeatures.instance(queryDocInd2).value(standardizedFeatures.attribute("header_w")));					
-						instance[4] = flip * ( standardizedFeatures.instance(queryDocInd1).value(standardizedFeatures.attribute("anchor_w"))
-						                     - standardizedFeatures.instance(queryDocInd2).value(standardizedFeatures.attribute("anchor_w")));						
+						for(int attInd = 0; attInd < attributes.size(); attInd++)
+							instance[attInd] = flip * ( standardizedFeatures.instance(queryDocInd1).value(standardizedFeatures.attribute(attInd))
+												 - standardizedFeatures.instance(queryDocInd2).value(standardizedFeatures.attribute(attInd)));
 						label = (int)flip*label;
 						String classLabel = Integer.toString(label);
 						
-						Instance inst = new DenseInstance(6);						
+						Instance inst = new DenseInstance(1+attributes.size());						
 					    inst.setDataset(pairWiseDataset);
 					    int ind = 0;
-					    for(ind = 0 ; ind < instance.length; ind++ )
+					    for(ind = 0 ; ind < attributes.size(); ind++ )
 					    	inst.setValue(ind, instance[ind]);					    				     
 					    inst.setValue(ind, classLabel); 
 					    
@@ -300,25 +352,18 @@ public class PairwiseLearner extends Learner {
 					queryDocInd1 = queryDocFeatureList.get(ind1).getSecond();
 					queryDocInd2 = queryDocFeatureList.get(ind2).getSecond(); 
 									
-					double[] instance = {1.0, 1.0, 1.0, 1.0, 1.0};
-									
-					instance[0] = standardizedFeatures.instance(queryDocInd1).value(standardizedFeatures.attribute("url_w"))
-							    - standardizedFeatures.instance(queryDocInd2).value(standardizedFeatures.attribute("url_w"));
-					instance[1] = standardizedFeatures.instance(queryDocInd1).value(standardizedFeatures.attribute("title_w"))
-						        - standardizedFeatures.instance(queryDocInd2).value(standardizedFeatures.attribute("title_w"));
-					instance[2] = standardizedFeatures.instance(queryDocInd1).value(standardizedFeatures.attribute("body_w"))
-						        - standardizedFeatures.instance(queryDocInd2).value(standardizedFeatures.attribute("body_w"));
-					instance[3] = standardizedFeatures.instance(queryDocInd1).value(standardizedFeatures.attribute("header_w"))
-					            - standardizedFeatures.instance(queryDocInd2).value(standardizedFeatures.attribute("header_w"));					
-					instance[4] = standardizedFeatures.instance(queryDocInd1).value(standardizedFeatures.attribute("anchor_w"))
-					            - standardizedFeatures.instance(queryDocInd2).value(standardizedFeatures.attribute("anchor_w"));						
+					double[] instance = new double[attributes.size()];
+					
+					for(int attInd = 0; attInd < attributes.size(); attInd++)				
+						instance[attInd] = standardizedFeatures.instance(queryDocInd1).value(standardizedFeatures.attribute(attInd))
+					        	       	 - standardizedFeatures.instance(queryDocInd2).value(standardizedFeatures.attribute(attInd));
 					
 					String classLabel = "1"; // does not matter
 					
-					Instance inst = new DenseInstance(6);						
+					Instance inst = new DenseInstance(1+attributes.size());						
 				    inst.setDataset(myTestFeatures.features);
 				    int ind = 0;
-				    for(ind = 0 ; ind < instance.length; ind++ )
+				    for(ind = 0 ; ind < attributes.size(); ind++ )
 				    	inst.setValue(ind, instance[ind]);					    				     
 				    inst.setValue(ind, classLabel); // does not matter 
 				    

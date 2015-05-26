@@ -22,83 +22,57 @@ public class tf_idfExtractor extends AScorer
 	// Normalize the term frequencies. Note that we should give uniform normalization to all fields as discussed
 		// in the assignment handout.
 		// also add sublinear scaling here if needed 
-		public void normalizeTFs(Map<String,Map<String, Double>> tfs,Document d, Query q) {
+	public void normalizeTFs(Map<String,Map<String, Double>> tfs,Document d, Query q) {
 
-			/*
-			 * @//TODO : Your code here
-			 */
-			double bodyLength_inv;
-		//	if(d.body_length == 0 )
-				bodyLength_inv= 1.0/((double)d.body_length + smoothingBodyLength);				 
-		//	else 
-		//		bodyLength_inv= 1.0/((double)d.body_length );
+		/*
+		 * @//TODO : Your code here
+		 */
+		double bodyLength_inv;
+		bodyLength_inv= 1.0/((double)d.body_length + smoothingBodyLength);				 			
+		double freq; 
+		
+		for (String term : tfs.get("url").keySet())	
+		{		
+			freq = tfs.get("url").get(term); 
+			if(freq!=0)
+
+			{ 				
+				freq *= bodyLength_inv;					
+				tfs.get("url").put(term, freq);
+			} 
 			
-			double freq; 
+			freq = tfs.get("title").get(term); 
+			if(freq!=0)
+			{ 						
+				freq *= bodyLength_inv;
+				tfs.get("title").put(term, freq);
+			}
 			
-			for (String term : tfs.get("url").keySet())	
-			{		
-				freq = tfs.get("url").get(term); 
-				if(freq!=0)
+			freq = tfs.get("body").get(term); 
+			if(freq!=0)
 
-				{ 
-					// apply sublinear scaling ??	
-					//..				
-				//	freq = 1.0 + Math.log(freq);
-					// normalize
-				//	System.out.println("freq "+ freq); 
-					freq *= bodyLength_inv;
-					
-					tfs.get("url").put(term, freq);
-				//	System.out.println("changed to "+ freq); 
-				} 
-				
-				freq = tfs.get("title").get(term); 
-				if(freq!=0)
+			{
+				freq *= bodyLength_inv;
+				tfs.get("body").put(term, freq);
+			}
+			
+			freq = tfs.get("header").get(term); 
+			if(freq!=0)
 
-				{ 	
-					// apply sublinear scaling ??	
-					//..
-			//		freq = 1.0 + Math.log(freq);
-					// normalize
-					freq *= bodyLength_inv;
-					tfs.get("title").put(term, freq);
-				}
-				
-				freq = tfs.get("body").get(term); 
-				if(freq!=0)
+			{ 				
+				freq *= bodyLength_inv;
+				tfs.get("header").put(term, freq);
+			}
+			
+			freq = tfs.get("anchor").get(term); 
+			if(freq!=0)
 
-				{
-					// apply sublinear scaling first				
-				//	freq = 1.0 + Math.log(freq);
-					// normalize
-					freq *= bodyLength_inv;
-					tfs.get("body").put(term, freq);
-				}
-				
-				freq = tfs.get("header").get(term); 
-				if(freq!=0)
-
-				{ 	
-					// apply sublinear scaling ??	
-					//..
-			//		freq = 1.0 + Math.log(freq);
-					// normalize
-					freq *= bodyLength_inv;
-					tfs.get("header").put(term, freq);
-				}
-				
-				freq = tfs.get("anchor").get(term); 
-				if(freq!=0)
-
-				{ 	
-					// apply sublinear scaling ??	
-				//	freq = 1.0 + Math.log(freq); 
-					// normalize
-					freq *= bodyLength_inv;
-					tfs.get("anchor").put(term, freq);
-				}
+			{ 				
+				freq *= bodyLength_inv;
+				tfs.get("anchor").put(term, freq);
 			}
 		}
+	}
 
 	@Override
 	public Map<String, Double> getFeatures(Document d, Query q) {
