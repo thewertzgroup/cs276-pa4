@@ -5,6 +5,7 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -19,7 +20,7 @@ public class Learning2Rank
 
 	public static Classifier train(String train_data_file, String train_rel_file, int task, Map<String,Double> idfs) 
 	{
-		System.err.println("## Training with feature_file =" + train_data_file + ", rel_file = " + train_rel_file + " ... \n");
+		System.err.println("## Training with feature_file = " + train_data_file + ", rel_file = " + train_rel_file + " ... \n");
 		Classifier model = null;
 		Learner learner = null;
 
@@ -29,7 +30,7 @@ public class Learning2Rank
 		} 
 		else if (task == 2) 
 		{
-			boolean isLinearKernel = true;
+			boolean isLinearKernel = false;
 			learner = new PairwiseLearner(isLinearKernel);
 		} 
 		else if (task == 3) 
@@ -62,6 +63,52 @@ public class Learning2Rank
 		return model;
 	}
 
+	
+	public static class PairwiseClassifier
+	{
+		public double C_exp;
+		public double gamma_exp;
+		public Classifier model;
+		
+		PairwiseClassifier(double C_exp, double gamma_exp, Classifier model)
+		{
+			this.C_exp = C_exp;
+			this.gamma_exp = gamma_exp;
+			this.model = model;
+		}
+	}
+
+	
+	public static List<PairwiseClassifier> getPairwiseClassifiers(String train_data_file, String train_rel_file, Map<String,Double> idfs) 
+	{
+		List<PairwiseClassifier> pairwiseClassifiers = new ArrayList<>();
+		
+		for (int C_exp = -3; C_exp <= 3; C_exp++)
+		{
+			for (int gamma_exp = -7; gamma_exp <= -1; gamma_exp++)
+			{
+				System.err.println("## Training with feature_file = " + train_data_file + ", rel_file = " + train_rel_file + " ... \n");
+				System.err.println("\nnon-linear SVM: C = 2^" + C_exp + " gamma = 2^" + gamma_exp + "\n\n");
+				
+				Classifier model = null;
+				Learner learner = null;
+
+				boolean isLinearKernel = false;
+				learner = new PairwiseLearner(Math.pow(2.0,  C_exp), Math.pow(2.0, gamma_exp), isLinearKernel);
+				
+				learner.setIDFs(idfs);
+
+				/* Step (1): construct your feature matrix here */
+				Instances data = learner.extract_train_features(train_data_file, train_rel_file);
+
+				/* Step (2): implement your learning algorithm here */
+				model = learner.training(data);
+
+				pairwiseClassifiers.add(new PairwiseClassifier(C_exp, gamma_exp, model));
+			}
+		}
+		return pairwiseClassifiers;
+	}
 
 	/*
 	 * 
@@ -126,7 +173,7 @@ public class Learning2Rank
 
 	public static void main(String[] args) throws IOException 
 	{
-		if (args.length != 4 && args.length != 5) 
+		if (args.length != 4 && args.length != 5 && args.length != 6) 
 		{
 			System.err.println("Input arguments: " + Arrays.toString(args));
 			System.err.println("Usage: <train_data_file> <train_rel_file> <test_data_file> <task> [ranked_out_file]");
@@ -140,10 +187,16 @@ public class Learning2Rank
 		String test_data_file = args[2];
 		int task = Integer.parseInt(args[3]);
 		String ranked_out_file = "";
-		if (args.length == 5)
+		String test_rel_file = "";
+//TODO		if (args.length == 5)
+if (args.length >= 5)
 		{
 			ranked_out_file = args[4];
 		}
+if (args.length == 6)
+{
+	test_rel_file = args[5];
+}
 
 		/* Populate idfs */
 		String dfFile = "df.txt";
@@ -159,12 +212,23 @@ public class Learning2Rank
 
 		/* Train & test */
 		System.err.println("### Running task" + task + "...");		
-		Classifier model = train(train_data_file, train_rel_file, task, idfs);
+//		Classifier model = train(train_data_file, train_rel_file, task, idfs);
+
+
+Classifier model;		
+List<PairwiseClassifier> classifiers = getPairwiseClassifiers(train_data_file, train_rel_file, idfs);
+for (PairwiseClassifier pairwiseClassifer : classifiers)
+{
+System.err.println("\n\nTesting non-linear SVM model with C = 2^" + pairwiseClassifer.C_exp + " gamma = 2^" + pairwiseClassifer.gamma_exp + "\n\n");
+model = pairwiseClassifer.model;
+
 
 		/* performance on the training data */
 		Map<String, List<String>> trained_ranked_queries = test(train_data_file, model, task, idfs);
+		
 		String trainOutFile="tmp.train.ranked";
 		writeRankedResultsToFile(trained_ranked_queries, new PrintStream(new FileOutputStream(trainOutFile)));
+		
 		NdcgMain ndcg = new NdcgMain(train_rel_file);
 		System.err.println("# Trained NDCG=" + ndcg.score(trainOutFile));
 		(new File(trainOutFile)).delete();
@@ -189,5 +253,14 @@ public class Learning2Rank
 				e.printStackTrace();
 			}
 		}
+
+NdcgMain ndcgTest = new NdcgMain(test_rel_file);
+System.err.println("# Test NDCG=" + ndcgTest.score(ranked_out_file));
+(new File(ranked_out_file)).delete();
+
+}//for (PairwiseClassifier pairwiseClassifer : classifiers)
+
+
 	}
+
 }
