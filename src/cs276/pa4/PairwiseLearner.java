@@ -68,8 +68,6 @@ public class PairwiseLearner extends Learner
 		TestFeatures testFeatures = new TestFeatures();
 		testFeatures.index_map = new HashMap<>();
 		
-		Instances dataset = null;
-		
 		/* Build attributes list */
 		ArrayList<Attribute> attributes = new ArrayList<Attribute>();
 		attributes.add(new Attribute("url_w"));
@@ -80,10 +78,12 @@ public class PairwiseLearner extends Learner
 
 		String[] labels = {"-1", "1"};
 		attributes.add(new Attribute("class", Arrays.asList(labels)));
-		dataset = new Instances(relevance_file != null ? "train_dataset" : "test_dataset", attributes, 0);
+		testFeatures.features = new Instances(relevance_file != null ? "train_dataset" : "test_dataset", attributes, 0);
 		
 		/* Set last attribute as target */
-		dataset.setClassIndex(dataset.numAttributes() - 1);
+		testFeatures.features.setClassIndex(testFeatures.features.numAttributes() - 1);
+		
+		TestFeatures standardizedFeatures = standardize(PointwiseLearner.extract_dataset(data_file, relevance_file));
 		
 		/* Add data */
 		Map<Query,List<Document>> queryMap = null;
@@ -131,18 +131,20 @@ public class PairwiseLearner extends Learner
 					// of documents with the same relevance score.
 					if (relMap != null && iRel == jRel) continue;
 					
-					double[] iInstance = getTFIDFVector(docs.get(i), query);
-					double[] jInstance = getTFIDFVector(docs.get(j), query);
+					double[] iVector = toVector(standardizedFeatures.features.get(standardizedFeatures.index_map.get(query.query).get(docs.get(i).url)));
+					double[] jVector = toVector(standardizedFeatures.features.get(standardizedFeatures.index_map.get(query.query).get(docs.get(j).url)));
 					
-					double[] instance = subtractArrays(iInstance, jInstance);
+					double[] vector = subtractArrays(iVector, jVector);
 
+					String indexUrl = docs.get(i).url + " " + docs.get(j).url;
 					if (relMap != null)
 					{
 						rel = (int)Math.signum(iRel - jRel);
 						if ((rel < 0 && positive < negative) || (rel > 0 && positive > negative))
 						{
 							rel *= -1;
-							negateArray(instance);
+							negateArray(vector);
+							indexUrl = docs.get(j).url + " " + docs.get(i).url;
 						}
 						
 						if (rel > 0) positive++;
@@ -150,26 +152,26 @@ public class PairwiseLearner extends Learner
 						if (rel == 0) throw new RuntimeException("'0' relevance when lable should be '-1' or '1'.");
 					}
 
-					Instance inst = new DenseInstance(6);					
-				    inst.setDataset(dataset);
-				    copyArray(inst, instance);
+					Instance instance = new DenseInstance(6);					
+				    instance.setDataset(testFeatures.features);
+				    setInstanceValues(instance, vector);
 				    
 				    if (relMap != null)
 				    {
 						String label = Integer.toString(rel);
-					    inst.setValue(5, label); 
+					    instance.setValue(5, label); 
 				    }
 				    
-					dataset.add(inst);
+				    testFeatures.features.add(instance);
 					
-					urlIndexMap.put(docs.get(i).url + " " + docs.get(j).url, dataset.size()-1);
+					urlIndexMap.put(indexUrl, testFeatures.features.size()-1);
 				}
 			}
 			
 			testFeatures.index_map.put(query.query,  urlIndexMap);
 		}
 		
-		System.err.println("\nDataset:\n\n" + dataset);
+/*		System.err.println("\nDataset:\n\n" + dataset);
 		
 		Standardize filter = new Standardize();	  
 		try {
@@ -181,19 +183,47 @@ public class PairwiseLearner extends Learner
 		}
 
 		System.err.println("\nStandardized Dataset:\n\n" + testFeatures.features);
-		
+*/
 		return testFeatures;
 	}
 
 
-	private void copyArray(Instance inst, double[] instance) 
+	private TestFeatures standardize(TestFeatures testFeatures) 
 	{
-	    for(int i = 0; i < instance.length; i++)
+		System.err.println("\nDataset:\n\n" + testFeatures.features);
+		
+		TestFeatures standardized = new TestFeatures();
+		
+		standardized.index_map = testFeatures.index_map;
+		
+		Standardize filter = new Standardize();	  
+		try {
+			filter.setInputFormat(testFeatures.features);
+			standardized.features = Filter.useFilter(testFeatures.features, filter);
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		System.err.println("\nStandardized Dataset:\n\n" + standardized.features);
+
+		return standardized;
+	}
+
+	private void setInstanceValues(Instance instance, double[] vector) 
+	{
+	    for(int i = 0; i < vector.length; i++)
 	    {
-	    	inst.setValue(i, instance[i]);	
+	    	instance.setValue(i, vector[i]);	
 	    }
 	}
 
+	
+	private double[] toVector(Instance instance)
+	{
+		return instance.toDoubleArray();
+	}
+	
 	
 	private double[] subtractArrays(double[] x, double[] y) 
 	{

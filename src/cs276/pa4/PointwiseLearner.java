@@ -24,7 +24,7 @@ public class PointwiseLearner extends Learner
 	}
 
 
-	private TestFeatures extract_dataset(String data_file, String relevance_file)
+	public static TestFeatures extract_dataset(String data_file, String relevance_file)
 	{
 		TestFeatures testFeatures = new TestFeatures();
 		testFeatures.index_map = new HashMap<>();

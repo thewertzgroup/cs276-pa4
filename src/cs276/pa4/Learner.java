@@ -8,9 +8,9 @@ import weka.core.Instances;
 
 public abstract class Learner {
 	
-	protected AScorer scorer = null;
+	protected static AScorer scorer = null;
 	
-	protected Map<String, Double> idfs = null;
+	protected static Map<String, Double> idfs = null;
 	
 	public void setIDFs(Map<String, Double> idfs) 
 	{
@@ -22,7 +22,7 @@ public abstract class Learner {
 		return this.idfs;
 	}
 
-	protected double[] getTFIDFVector(Document doc, Query query)
+	public static double[] getTFIDFVector(Document doc, Query query)
 	{
 		Map<String, Map<String, Double>> tfVectors = scorer.getDocTermFreqs(doc, query);
 		Map<String, Double> idfVector = Util.getIDFVector(query, idfs);
