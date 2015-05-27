@@ -84,7 +84,7 @@ public class PairwiseLearner extends Learner
 		
 		/* Set last attribute as target */
 		testFeatures.features.setClassIndex(testFeatures.features.numAttributes() - 1);
-		
+
 		TestFeatures standardizedFeatures = standardize(PointwiseLearner.extract_dataset(data_file, relevance_file));
 		
 		/* Add data */

@@ -1,6 +1,7 @@
 package cs276.pa4;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -17,7 +18,6 @@ import weka.core.Instances;
 
 public class PointwiseLearner extends Learner 
 {
-	
 	private TestFeatures extract_dataset(String data_file)
 	{
 		return extract_dataset(data_file, null);
@@ -36,6 +36,21 @@ public class PointwiseLearner extends Learner
 		attributes.add(new Attribute("body_w"));
 		attributes.add(new Attribute("header_w"));
 		attributes.add(new Attribute("anchor_w"));
+		if (features.contains(Features.BM25))
+		{
+			attributes.add(new Attribute("bm25"));
+
+		}
+		if (features.contains(Features.SmallWindow))
+		{
+			attributes.add(new Attribute("smallest_window"));
+
+		}
+		if (features.contains(Features.PageRank))
+		{
+			attributes.add(new Attribute("page_rank"));
+
+		}
 		attributes.add(new Attribute("relevance_score"));
 		
 		testFeatures.features = new Instances(relevance_file != null ? "train_dataset" : "test_dataset", attributes, 0);
@@ -104,6 +119,7 @@ public class PointwiseLearner extends Learner
 		 * you the basic approach to construct a Instances 
 		 * object, replace with your implementation. 
 		 */
+		List<Features> features =  Arrays.asList(Features.BM25, Features.SmallWindow, Features.PageRank);
 				
 		return extract_dataset(train_data_file, train_rel_file).features;
 	}

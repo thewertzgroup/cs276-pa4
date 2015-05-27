@@ -1,16 +1,27 @@
 package cs276.pa4;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import cs276.pa4.Learner.Features;
 import weka.classifiers.Classifier;
 import weka.core.Instances;
 
 public abstract class Learner {
 	
+	public static enum Features
+	{
+		BM25,			// BM25 Ranking
+		SmallWindow,	// Smallest Window
+		PageRank		// PageRank
+	}
+	
 	protected static AScorer scorer = null;
 	
 	protected static Map<String, Double> idfs = null;
+	
+	protected static List<Features> features = new ArrayList<>();
 	
 	public void setIDFs(Map<String, Double> idfs) 
 	{
@@ -20,6 +31,11 @@ public abstract class Learner {
 	public Map<String, Double> getIDFs()
 	{
 		return this.idfs;
+	}
+
+	public void setFeatures(List<Features> features) 
+	{
+		this.features = features;
 	}
 
 	public static double[] getTFIDFVector(Document doc, Query query)

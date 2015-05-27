@@ -11,6 +11,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import cs276.pa4.Learner.Features;
 import weka.classifiers.Classifier;
 import weka.core.Instances;
 
@@ -41,6 +42,11 @@ public class Learning2Rank
 			 * */
 			System.err.println("Task 3");
 
+			boolean isLinearKernel = false;
+			learner = new PairwiseLearner(isLinearKernel);
+			
+			List<Features> features =  Arrays.asList(Features.BM25, Features.SmallWindow, Features.PageRank);
+			learner.setFeatures(features);
 		} 
 		else if (task == 4) 
 		{
