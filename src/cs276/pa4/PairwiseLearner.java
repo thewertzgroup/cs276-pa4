@@ -2,9 +2,11 @@ package cs276.pa4;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeSet;
 
 import weka.classifiers.Classifier;
 import weka.classifiers.functions.LibSVM;
@@ -171,26 +173,13 @@ public class PairwiseLearner extends Learner
 			testFeatures.index_map.put(query.query,  urlIndexMap);
 		}
 		
-/*		System.err.println("\nDataset:\n\n" + dataset);
-		
-		Standardize filter = new Standardize();	  
-		try {
-			filter.setInputFormat(dataset);
-			testFeatures.features = Filter.useFilter(dataset, filter);
-		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-
-		System.err.println("\nStandardized Dataset:\n\n" + testFeatures.features);
-*/
 		return testFeatures;
 	}
 
 
 	private TestFeatures standardize(TestFeatures testFeatures) 
 	{
-		System.err.println("\nDataset:\n\n" + testFeatures.features);
+		//System.err.println("\nDataset:\n\n" + testFeatures.features);
 		
 		TestFeatures standardized = new TestFeatures();
 		
@@ -205,7 +194,7 @@ public class PairwiseLearner extends Learner
 			e.printStackTrace();
 		}
 		
-		System.err.println("\nStandardized Dataset:\n\n" + standardized.features);
+		//System.err.println("\nStandardized Dataset:\n\n" + standardized.features);
 
 		return standardized;
 	}
@@ -283,6 +272,51 @@ public class PairwiseLearner extends Learner
 		
 		return extract_dataset(test_data_file);
 	}
+	
+	
+	class PairwiseComparator implements Comparator<String>
+	{
+		private String query;
+		private TestFeatures tf;
+		private Classifier model;
+		
+		PairwiseComparator(String query, TestFeatures testFeatures, Classifier model)
+		{
+			this.query = query;
+			this.tf = testFeatures;
+			this.model = model;
+		}
+		
+		@Override
+		public int compare(String url1, String url2) 
+		{
+			Map<String, Integer> urlIndexMap = tf.index_map.get(query);
+			
+			if (url1.equals(url2)) return 0;
+			
+			int sign = 1;
+			Integer index  = urlIndexMap.get(url1 + " " + url2);
+			if (index == null)
+			{
+				index  = urlIndexMap.get(url2 + " " + url1);
+				sign = -1;
+			}
+			if (index == null) throw new RuntimeException("null index in compare!");
+			
+			int result;
+			try 
+			{
+				result = (int)model.classifyInstance(tf.features.get(index));
+			} 
+			catch (Exception e) 
+			{
+				e.printStackTrace();
+				throw new RuntimeException("Exception in classifyInstance.", e);
+			}
+
+			return result == 0 ? 1*sign : -1*sign;
+		}
+	}
 
 	
 	@Override
@@ -291,7 +325,26 @@ public class PairwiseLearner extends Learner
 		/*
 		 * @TODO: Your code here
 		 */
-		return null;
+		Map<String, List<String>> rankedQueries = new HashMap<String, List<String>>();
+		
+		for (String query : tf.index_map.keySet())
+		{
+			TreeSet<String> results = new TreeSet<>(new PairwiseComparator(query, tf, model));
+						
+			Map<String, Integer> urlIndexMap = tf.index_map.get(query);
+			
+			for (String url : urlIndexMap.keySet())
+			{
+				String[] urls = url.split(" ");
+				
+				results.add(urls[0]);
+				results.add(urls[1]);
+			}
+			
+			rankedQueries.put(query, new ArrayList<String>(results));
+		}
+
+		return rankedQueries;
 	}
 
 }
