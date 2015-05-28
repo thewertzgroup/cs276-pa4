@@ -63,11 +63,9 @@ public class PointwiseLearner extends Learner
 		}
 
 		/* Add data */
-		Map<Query,List<Document>> queryMap = null;
-		Map<String, Map<String, Double>> relMap = null;
 		try 
 		{
-			queryMap = Util.loadTrainData(data_file);
+			queryMap = queryMap == null && data_file != null ? Util.loadTrainData(data_file) : queryMap;
 			relMap 	 = relevance_file != null ? Util.loadRelData(relevance_file) : null;
 		} 
 		catch (Exception e) 
@@ -76,10 +74,15 @@ public class PointwiseLearner extends Learner
 			throw new RuntimeException("Unable to load signal data, or relevance data.", e);
 		}
 
-		// Set scorer for base class.
-		if (null == scorer)
+		// Set BM25 scorer for base class.
+		if (null == bm25Scorer)
 		{
-			scorer = new BM25Scorer(idfs, queryMap);
+			bm25Scorer = new BM25Scorer(idfs, queryMap);
+		}
+		
+		if (null == smallestWindowScorer)
+		{
+			smallestWindowScorer = new SmallestWindowScorer(idfs, queryMap);
 		}
 		
 		for (Query query : queryMap.keySet())
@@ -95,7 +98,7 @@ public class PointwiseLearner extends Learner
 				if (relMap != null)
 				{
 					// ADD RELEVANCE SCORE (TARGET VARIABLE) HERE.
-					instance[5] = relMap.get(query.query).get(doc.url);
+					instance[testFeatures.features.numAttributes() - 1] = relMap.get(query.query).get(doc.url);
 				}
 				
 				Instance inst = new DenseInstance(1.0, instance); 

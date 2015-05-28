@@ -6,6 +6,7 @@ import java.util.Map;
 
 import cs276.pa4.Learner.Features;
 import weka.classifiers.Classifier;
+import weka.core.Attribute;
 import weka.core.Instances;
 
 public abstract class Learner {
@@ -17,11 +18,25 @@ public abstract class Learner {
 		PageRank		// PageRank
 	}
 	
-	protected static AScorer scorer = null;
+	protected static Map<Query,List<Document>> queryMap = null;
+	protected static Map<String, Map<String, Double>> relMap = null;
+	
+	protected static AScorer bm25Scorer = null;
+	
+	protected static AScorer smallestWindowScorer = null;
 	
 	protected static Map<String, Double> idfs = null;
 	
 	protected static List<Features> features = new ArrayList<>();
+	
+	public static void reset()
+	{
+		System.err.println("\n##### Learner RESET #####\n\n");
+		queryMap = null;
+		relMap = null;
+		bm25Scorer = null;
+		smallestWindowScorer = null;
+	}
 	
 	public void setIDFs(Map<String, Double> idfs) 
 	{
@@ -40,16 +55,16 @@ public abstract class Learner {
 
 	public static double[] getTFIDFVector(Document doc, Query query)
 	{
-		Map<String, Map<String, Double>> tfVectors = scorer.getDocTermFreqs(doc, query);
+		Map<String, Map<String, Double>> tfVectors = bm25Scorer.getDocTermFreqs(doc, query);
 		Map<String, Double> idfVector = Util.getIDFVector(query, idfs);
 		
-		double[] instance = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
+		double[] instance = new double[6 + features.size()];
+		for (int i=0; i<instance.length; i++) instance[i] = -1;
 
 		// Iterate over tf vectors, and calculate field tf-idf
 		for (String type : tfVectors.keySet())
 		{
-			Double score = scorer.dotVectors(tfVectors.get(type), idfVector);
-			
+			Double score = bm25Scorer.dotVectors(tfVectors.get(type), idfVector);
 			// "url","title","body","header","anchor"
 			if (type.equals("url"))
 			{
@@ -76,7 +91,21 @@ public abstract class Learner {
 				throw new RuntimeException("Unsupported type in PointwiseLearner.");
 			}
 		}
-		
+
+		int index = 5;
+		if (features.contains(Features.BM25))
+		{
+			instance[index++] = bm25Scorer.getSimScore(doc, query);
+		}
+		if (features.contains(Features.SmallWindow))
+		{
+			instance[index++] = smallestWindowScorer.getSimScore(doc, query);
+		}
+		if (features.contains(Features.PageRank))
+		{
+			instance[index++] = doc.page_rank;
+		}
+
 		return instance;
 	}
 

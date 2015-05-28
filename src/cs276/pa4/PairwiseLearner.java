@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeSet;
 
+import cs276.pa4.Learner.Features;
 import weka.classifiers.Classifier;
 import weka.classifiers.functions.LibSVM;
 import weka.core.Attribute;
@@ -77,6 +78,21 @@ public class PairwiseLearner extends Learner
 		attributes.add(new Attribute("body_w"));
 		attributes.add(new Attribute("header_w"));
 		attributes.add(new Attribute("anchor_w"));
+		if (features.contains(Features.BM25))
+		{
+			attributes.add(new Attribute("bm25"));
+
+		}
+		if (features.contains(Features.SmallWindow))
+		{
+			attributes.add(new Attribute("smallest_window"));
+
+		}
+		if (features.contains(Features.PageRank))
+		{
+			attributes.add(new Attribute("page_rank"));
+
+		}
 
 		String[] labels = {"-1", "1"};
 		attributes.add(new Attribute("class", Arrays.asList(labels)));
@@ -88,11 +104,9 @@ public class PairwiseLearner extends Learner
 		TestFeatures standardizedFeatures = standardize(PointwiseLearner.extract_dataset(data_file, relevance_file));
 		
 		/* Add data */
-		Map<Query,List<Document>> queryMap = null;
-		Map<String, Map<String, Double>> relMap = null;
 		try 
 		{
-			queryMap = Util.loadTrainData(data_file);
+			queryMap = queryMap == null && data_file != null ? Util.loadTrainData(data_file) : queryMap;
 			relMap 	 = relevance_file != null ? Util.loadRelData(relevance_file) : null;
 		} 
 		catch (Exception e) 
@@ -101,19 +115,24 @@ public class PairwiseLearner extends Learner
 			throw new RuntimeException("Unable to load signal data, or relevance data.", e);
 		}
 
-		// Set scorer for base class.
-		if (null == scorer)
+		// Set BM25 scorer for base class.
+		if (null == bm25Scorer)
 		{
-			scorer = new BM25Scorer(idfs, queryMap);
+			bm25Scorer = new BM25Scorer(idfs, queryMap);
 		}
 		
+		if (null == smallestWindowScorer)
+		{
+			smallestWindowScorer = new SmallestWindowScorer(idfs, queryMap);
+		}
+
 		// Iterate over queries / document pairs and compute five-dimensional training vectors.
 		int    positive = 0;
 		int    negative = 0;
 		int         rel = 0;
 		double     iRel = 0.0;
 		double     jRel = 0.0;
-		for (Query query : queryMap.keySet())
+		for (Query query : queryMap.keySet())			
 		{
 			// Maps the URL pair to the row index of the test matrix to retrieve for prediction.
 			Map<String, Integer> urlIndexMap = new HashMap<>(); 
@@ -154,14 +173,14 @@ public class PairwiseLearner extends Learner
 						if (rel == 0) throw new RuntimeException("'0' relevance when lable should be '-1' or '1'.");
 					}
 
-					Instance instance = new DenseInstance(6);					
+					Instance instance = new DenseInstance(6 + features.size());					
 				    instance.setDataset(testFeatures.features);
 				    setInstanceValues(instance, vector);
 				    
 				    if (relMap != null)
 				    {
 						String label = Integer.toString(rel);
-					    instance.setValue(5, label); 
+					    instance.setValue(testFeatures.features.numAttributes() - 1, label); 
 				    }
 				    
 				    testFeatures.features.add(instance);
