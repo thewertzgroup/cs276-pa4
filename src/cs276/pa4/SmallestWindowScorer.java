@@ -126,7 +126,7 @@ public class SmallestWindowScorer extends BM25Scorer
 				}
 				if (queryTerms.isEmpty()) break;
 			}
-			smallestWindow = end - start < smallestWindow ? end - start : smallestWindow;
+			smallestWindow = end - start + 1 < smallestWindow ? end - start + 1 : smallestWindow;
 			
 			curSmallestWindow = smallestWindow < curSmallestWindow ? smallestWindow : curSmallestWindow;
 			
