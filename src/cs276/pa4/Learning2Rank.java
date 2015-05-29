@@ -56,7 +56,7 @@ public class Learning2Rank
 
 		}
 		
-		learner.setIDFs(idfs);
+		Learner.setIDFs(idfs);
 
 		/* Step (1): construct your feature matrix here */
 		Instances data = learner.extract_train_features(train_data_file, train_rel_file);
@@ -83,7 +83,7 @@ public class Learning2Rank
 	}
 
 	
-	public static List<PairwiseClassifier> getPairwiseClassifiers(String train_data_file, String train_rel_file, Map<String,Double> idfs) 
+	public static List<PairwiseClassifier> getPairwiseClassifiers(String train_data_file, String train_rel_file, int task, Map<String,Double> idfs) 
 	{
 		List<PairwiseClassifier> pairwiseClassifiers = new ArrayList<>();
 		
@@ -99,8 +99,8 @@ public class Learning2Rank
 
 				boolean isLinearKernel = false;
 				learner = new PairwiseLearner(Math.pow(2.0,  C_exp), Math.pow(2.0, gamma_exp), isLinearKernel);
-				
-				learner.setIDFs(idfs);
+				if (task == 3) learner.setFeatures(features);
+				Learner.setIDFs(idfs);
 
 				/* Step (1): construct your feature matrix here */
 				Instances data = learner.extract_train_features(train_data_file, train_rel_file);
@@ -153,7 +153,7 @@ public class Learning2Rank
 
 		}
 		
-		learner.setIDFs(idfs);
+		Learner.setIDFs(idfs);
 
 		/* Step (1): construct your test feature matrix here */
 		TestFeatures tf = learner.extract_test_features(test_data_file);
@@ -218,37 +218,54 @@ public class Learning2Rank
 			e.printStackTrace();
 		}
 		
-		features =  Arrays.asList(Features.BM25, Features.SmallWindow, Features.PageRank);
-
-		/* Train & test */
-		System.err.println("### Running task " + task + " ...");		
+		List<List<Features>> featureLists = new ArrayList<>();
+		featureLists.add(new ArrayList<Features>());
+		featureLists.add(Arrays.asList(Features.BM25));
+		featureLists.add(Arrays.asList(Features.SmallWindow));
+		featureLists.add(Arrays.asList(Features.PageRank));
+		featureLists.add(Arrays.asList(Features.BM25, Features.SmallWindow));
+		featureLists.add(Arrays.asList(Features.BM25, Features.PageRank));
+		featureLists.add(Arrays.asList(Features.SmallWindow, Features.PageRank));
+		featureLists.add(Arrays.asList(Features.BM25, Features.SmallWindow, Features.PageRank));
 		
-		Classifier model = null;
-		if (gridSearch)
+		for (List<Features> curFeatures : featureLists)
 		{
-			System.err.println("### Running grid search ...");		
-
-			List<PairwiseClassifier> classifiers = getPairwiseClassifiers(train_data_file, train_rel_file, idfs);
+			//features =  Arrays.asList(Features.BM25, Features.SmallWindow, Features.PageRank);
+			features = curFeatures;
+			System.err.println("\n\n\n################ Current Features ################\n");
+			System.err.println("################ : " + features + "\n\n");
+	
+			/* Train & test */
+			System.err.println("### Running task " + task + " ...");		
 			
-			for (PairwiseClassifier pairwiseClassifer : classifiers)
+			Classifier model = null;
+			if (gridSearch)
 			{
-				System.err.println("\n\nTesting non-linear SVM model with C = 2^" + pairwiseClassifer.C_exp + " gamma = 2^" + pairwiseClassifer.gamma_exp + "\n\n");
-				model = pairwiseClassifer.model;
+				System.err.println("### Running grid search ...");		
+	
+				List<PairwiseClassifier> classifiers = getPairwiseClassifiers(train_data_file, train_rel_file, task, idfs);
 				
-				testModel(train_data_file, train_rel_file, test_data_file, ranked_out_file, model, task, idfs);
-				
-				NdcgMain ndcgTest = new NdcgMain(test_rel_file);
-				System.err.println("# Test NDCG=" + ndcgTest.score(ranked_out_file));
-				(new File(ranked_out_file)).delete();
+				for (PairwiseClassifier pairwiseClassifer : classifiers)
+				{
+					System.err.println("\n\nTesting non-linear SVM model with C = 2^" + pairwiseClassifer.C_exp + " gamma = 2^" + pairwiseClassifer.gamma_exp + "\n\n");
+					model = pairwiseClassifer.model;
+					
+	//				Learner.reset(); // Reset cached parameters.
+					testModel(train_data_file, train_rel_file, test_data_file, ranked_out_file, model, task, idfs);
+					
+					NdcgMain ndcgTest = new NdcgMain(test_rel_file);
+					System.err.println("# Test NDCG=" + ndcgTest.score(ranked_out_file));
+					(new File(ranked_out_file)).delete();
+				}
 			}
-		}
-		else
-		{
-			System.err.println("### Running model train/test ...");		
-
-			model = train(train_data_file, train_rel_file, task, idfs);
-
-			testModel(train_data_file, train_rel_file, test_data_file, ranked_out_file, model, task, idfs);	
+			else
+			{
+				System.err.println("### Running model train/test ...");		
+	
+				model = train(train_data_file, train_rel_file, task, idfs);
+	
+				testModel(train_data_file, train_rel_file, test_data_file, ranked_out_file, model, task, idfs);	
+			}
 		}
 
 	}
@@ -266,7 +283,7 @@ public class Learning2Rank
 		System.err.println("# Trained NDCG=" + ndcg.score(trainOutFile));
 		(new File(trainOutFile)).delete();
 
-		Learner.reset(); // Reset cached parameters.
+//		Learner.reset(); // Reset cached parameters.
 		Map<String, List<String>> ranked_queries = test(test_data_file, model, task, idfs);
 
 		/* Output results */

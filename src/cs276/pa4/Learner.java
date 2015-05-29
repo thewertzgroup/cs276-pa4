@@ -1,6 +1,8 @@
 package cs276.pa4;
 
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -11,24 +13,100 @@ import weka.core.Instances;
 
 public abstract class Learner {
 	
-	public static enum Features
+	private static Map<String, Map<Query,List<Document>>> queryMaps;
+	static {
+		queryMaps = new HashMap<>();
+	}
+	private static Map<String, Map<String, Map<String, Double>>> relMaps;
+	static {
+		relMaps = new HashMap<>();
+	}
+	
+	public static Map<Query,List<Document>> getQueryMap(String data_file)
+	{
+		Map<Query,List<Document>> queryMap;
+		
+		queryMap = queryMaps.get(data_file);
+		if (queryMap == null)
+		{
+			try {
+				queryMap = Util.loadTrainData(data_file);
+			} catch (Exception e) {
+				throw new RuntimeException("Unable to load data file: " + data_file, e);
+			}
+			queryMaps.put(data_file, queryMap);
+		}
+		return queryMap;
+	}
+	
+	public static Map<String, Map<String, Double>> getRelMap(String rel_file)
+	{
+		Map<String, Map<String, Double>> relMap;
+		
+		relMap = relMaps.get(rel_file);
+		if (relMap == null)
+		{
+			try {
+				relMap = Util.loadRelData(rel_file);
+			} catch (IOException e) {
+				throw new RuntimeException("Unable to load relevance file: " + rel_file, e);
+			}
+			relMaps.put(rel_file,  relMap);
+		}
+		return relMap;
+	}
+	
+	public /*static*/ enum Features
 	{
 		BM25,			// BM25 Ranking
 		SmallWindow,	// Smallest Window
 		PageRank		// PageRank
 	}
 	
-	protected static Map<Query,List<Document>> queryMap = null;
-	protected static Map<String, Map<String, Double>> relMap = null;
+	private static Map<Map<Query,List<Document>>, BM25Scorer> bm25Scorers;
+	static {
+		bm25Scorers = new HashMap<>();
+	}
+	private static Map<Map<Query,List<Document>>, SmallestWindowScorer> smallestWindowScorers;
+	static {
+		smallestWindowScorers = new HashMap<>();
+	}
 	
-	protected static AScorer bm25Scorer = null;
+	public static BM25Scorer getBM25Scorer(Map<Query,List<Document>> queryMap)
+	{
+		BM25Scorer scorer;
+		
+		scorer = bm25Scorers.get(queryMap);
+		if (scorer == null)
+		{
+			scorer = new BM25Scorer(idfs, queryMap);
+			bm25Scorers.put(queryMap,  scorer);
+		}
+		return scorer;
+	}
 	
-	protected static AScorer smallestWindowScorer = null;
+	public static SmallestWindowScorer getSmallestWindowScorer(Map<Query,List<Document>> queryMap)
+	{
+		SmallestWindowScorer scorer;
+		
+		scorer = smallestWindowScorers.get(queryMap);
+		if (scorer == null)
+		{
+			scorer = new SmallestWindowScorer(idfs, queryMap);
+			smallestWindowScorers.put(queryMap,  scorer);
+		}
+		return scorer;
+	}
 	
-	protected static Map<String, Double> idfs = null;
+    protected /*static*/ Map<Query,List<Document>> queryMap = null;
+    protected /*static*/ Map<String, Map<String, Double>> relMap = null;
 	
-	protected static List<Features> features = new ArrayList<>();
+	protected /*static*/ AScorer bm25Scorer = null;
 	
+	protected /*static*/ AScorer smallestWindowScorer = null;
+	
+	protected /*static*/ List<Features> features = new ArrayList<>();
+/*	
 	public static void reset()
 	{
 		System.err.println("\n##### Learner RESET #####\n\n");
@@ -37,15 +115,17 @@ public abstract class Learner {
 		bm25Scorer = null;
 		smallestWindowScorer = null;
 	}
+*/	
 	
-	public void setIDFs(Map<String, Double> idfs) 
+	protected static Map<String, Double> idfs = null;
+
+	public static void setIDFs(Map<String, Double> idfs) 
 	{
-		this.idfs = idfs;
+		Learner.idfs = idfs;
 	}
-	
-	public Map<String, Double> getIDFs()
+	public static Map<String, Double> getIDFs()
 	{
-		return this.idfs;
+		return Learner.idfs;
 	}
 
 	public void setFeatures(List<Features> features) 
@@ -53,7 +133,7 @@ public abstract class Learner {
 		this.features = features;
 	}
 
-	public static double[] getTFIDFVector(Document doc, Query query)
+	public /*static*/ double[] getTFIDFVector(Document doc, Query query)
 	{
 		Map<String, Map<String, Double>> tfVectors = bm25Scorer.getDocTermFreqs(doc, query);
 		Map<String, Double> idfVector = Util.getIDFVector(query, idfs);

@@ -66,11 +66,11 @@ public class PairwiseLearner extends Learner
 	}
 
 
-	private TestFeatures extract_dataset(String data_file, String relevance_file)
+	public TestFeatures extract_dataset(String data_file, String relevance_file)
 	{
 		TestFeatures testFeatures = new TestFeatures();
 		testFeatures.index_map = new HashMap<>();
-		
+System.err.println("Pairwise Learner features: " + features);		
 		/* Build attributes list */
 		ArrayList<Attribute> attributes = new ArrayList<Attribute>();
 		attributes.add(new Attribute("url_w"));
@@ -101,30 +101,17 @@ public class PairwiseLearner extends Learner
 		/* Set last attribute as target */
 		testFeatures.features.setClassIndex(testFeatures.features.numAttributes() - 1);
 
-		TestFeatures standardizedFeatures = standardize(PointwiseLearner.extract_dataset(data_file, relevance_file));
+		PointwiseLearner pointwiseLearner = new PointwiseLearner();
+		pointwiseLearner.setFeatures(features);
+		TestFeatures standardizedFeatures = standardize(pointwiseLearner.extract_dataset(data_file, relevance_file));
 		
 		/* Add data */
-		try 
-		{
-			queryMap = queryMap == null && data_file != null ? Util.loadTrainData(data_file) : queryMap;
-			relMap 	 = relevance_file != null ? Util.loadRelData(relevance_file) : null;
-		} 
-		catch (Exception e) 
-		{
-			e.printStackTrace();
-			throw new RuntimeException("Unable to load signal data, or relevance data.", e);
-		}
+		queryMap = Learner.getQueryMap(data_file);
+		relMap 	 = relevance_file != null ? Learner.getRelMap(relevance_file) : null;
 
-		// Set BM25 scorer for base class.
-		if (null == bm25Scorer)
-		{
-			bm25Scorer = new BM25Scorer(idfs, queryMap);
-		}
-		
-		if (null == smallestWindowScorer)
-		{
-			smallestWindowScorer = new SmallestWindowScorer(idfs, queryMap);
-		}
+		// Set BM25 scorers for base class.
+		bm25Scorer = Learner.getBM25Scorer(queryMap);
+		smallestWindowScorer = Learner.getSmallestWindowScorer(queryMap);
 
 		// Iterate over queries / document pairs and compute five-dimensional training vectors.
 		int    positive = 0;

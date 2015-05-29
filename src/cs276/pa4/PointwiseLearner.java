@@ -3,7 +3,6 @@ package cs276.pa4;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -22,13 +21,13 @@ public class PointwiseLearner extends Learner
 	{
 		return extract_dataset(data_file, null);
 	}
-
-
-	public static TestFeatures extract_dataset(String data_file, String relevance_file)
+	
+	
+	public /*static*/ TestFeatures extract_dataset(String data_file, String relevance_file)
 	{
 		TestFeatures testFeatures = new TestFeatures();
 		testFeatures.index_map = new HashMap<>();
-		
+System.err.println("Pointwise Learner features: " + features);		
 		/* Build attributes list */
 		ArrayList<Attribute> attributes = new ArrayList<Attribute>();
 		attributes.add(new Attribute("url_w"));
@@ -63,27 +62,12 @@ public class PointwiseLearner extends Learner
 		}
 
 		/* Add data */
-		try 
-		{
-			queryMap = queryMap == null && data_file != null ? Util.loadTrainData(data_file) : queryMap;
-			relMap 	 = relevance_file != null ? Util.loadRelData(relevance_file) : null;
-		} 
-		catch (Exception e) 
-		{
-			e.printStackTrace();
-			throw new RuntimeException("Unable to load signal data, or relevance data.", e);
-		}
+		queryMap = Learner.getQueryMap(data_file);
+		relMap 	 = relevance_file != null ? Learner.getRelMap(relevance_file) : null;
 
-		// Set BM25 scorer for base class.
-		if (null == bm25Scorer)
-		{
-			bm25Scorer = new BM25Scorer(idfs, queryMap);
-		}
-		
-		if (null == smallestWindowScorer)
-		{
-			smallestWindowScorer = new SmallestWindowScorer(idfs, queryMap);
-		}
+		// Set scorers for base class.
+		bm25Scorer = Learner.getBM25Scorer(queryMap);
+		smallestWindowScorer = Learner.getSmallestWindowScorer(queryMap);
 		
 		for (Query query : queryMap.keySet())
 		{
@@ -122,8 +106,6 @@ public class PointwiseLearner extends Learner
 		 * you the basic approach to construct a Instances 
 		 * object, replace with your implementation. 
 		 */
-		List<Features> features =  Arrays.asList(Features.BM25, Features.SmallWindow, Features.PageRank);
-				
 		return extract_dataset(train_data_file, train_rel_file).features;
 	}
 
