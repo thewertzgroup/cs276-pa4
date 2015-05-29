@@ -29,7 +29,7 @@ public class PairwiseLearner extends Learner {
   private ArrayList<Attribute> attributes = new ArrayList<Attribute>();
   final String [] classLabels = {"-1", "1"}; 
   public PairwiseLearner(boolean isLinearKernel){
-		super(false, false, false);
+		super(false, false, false, false, false, false, false, false, false);
 	    try{
 	      model = new LibSVM();
 	     //0. Build the attributes
@@ -48,14 +48,22 @@ public class PairwiseLearner extends Learner {
 	      e.printStackTrace();
 	    }
 	    
-	     
+	  //  double C = 1.0; 
+	  //  model.setCost(C);
 	    if(isLinearKernel){
 	      model.setKernelType(new SelectedTag(LibSVM.KERNELTYPE_LINEAR, LibSVM.TAGS_KERNELTYPE));
+	      
+	      
+	    }
+	    else 
+	    { 
+	    	model.setCost(2.0);
+		    model.setGamma(0.5); // only matter for RBF kernel 
 	    }
 	    
 	  }
-  public PairwiseLearner(boolean isLinearKernel, boolean withBM25, boolean withSmallestWindow, boolean withPageRank){
-	super(withBM25, withSmallestWindow, withPageRank);
+  public PairwiseLearner(boolean isLinearKernel, boolean withBM25, boolean withSmallestWindow, boolean withPageRank, boolean withUrlLen, boolean withTitleLen, boolean withBodyLen, boolean withHeaderLen, boolean withAnchorLen, boolean withUrlPDF){
+	super(withBM25, withSmallestWindow, withPageRank, withUrlLen, withTitleLen, withBodyLen, withHeaderLen, withAnchorLen, withUrlPDF);
     try{
       model = new LibSVM();
      //0. Build the attributes
@@ -73,6 +81,18 @@ public class PairwiseLearner extends Learner {
   		attributes.add(new Attribute("smallWindow_w"));
   	if(withPageRank)
   		attributes.add(new Attribute("pageRank_w"));
+  	if(withUrlLen)
+  		attributes.add(new Attribute("UrlLen"));
+  	if(withTitleLen)
+  		attributes.add(new Attribute("TitleLen"));
+  	if(withBodyLen)
+  		attributes.add(new Attribute("BodyLen"));
+  	if(withHeaderLen)
+  		attributes.add(new Attribute("HeaderLen"));
+  	if(withAnchorLen)
+  		attributes.add(new Attribute("AnchorLen"));  	
+  	if(withUrlPDF)
+  		attributes.add(new Attribute("UrlPDF"));
   	
 
     } catch (Exception e){
@@ -86,8 +106,8 @@ public class PairwiseLearner extends Learner {
     
   }
   
-  public PairwiseLearner(double C, double gamma, boolean isLinearKernel,  boolean withBM25, boolean withSmallestWindow, boolean withPageRank){
-	super(withBM25, withSmallestWindow, withPageRank);
+  public PairwiseLearner(double C, double gamma, boolean isLinearKernel,  boolean withBM25, boolean withSmallestWindow, boolean withPageRank, boolean withUrlLen, boolean withTitleLen, boolean withBodyLen, boolean withHeaderLen, boolean withAnchorLen, boolean withUrlPDF){
+		super(withBM25, withSmallestWindow, withPageRank, withUrlLen, withTitleLen, withBodyLen, withHeaderLen, withAnchorLen, withUrlPDF);
     try{
       model = new LibSVM();
       //0. Build the attributes
@@ -104,6 +124,19 @@ public class PairwiseLearner extends Learner {
   		attributes.add(new Attribute("smallWindow_w"));
   	  if(withPageRank)
   		attributes.add(new Attribute("pageRank_w"));
+  	if(withUrlLen)
+  		attributes.add(new Attribute("UrlLen"));
+  	if(withTitleLen)
+  		attributes.add(new Attribute("TitleLen"));
+  	if(withBodyLen)
+  		attributes.add(new Attribute("BodyLen"));
+  	if(withHeaderLen)
+  		attributes.add(new Attribute("HeaderLen"));
+  	if(withAnchorLen)
+  		attributes.add(new Attribute("AnchorLen"));  
+  	
+  	  if(withUrlPDF)
+  		attributes.add(new Attribute("UrlPDF"));
 
     } catch (Exception e){
       e.printStackTrace();
@@ -159,8 +192,8 @@ public class PairwiseLearner extends Learner {
 			bm25Scorer = new BM25Scorer(idfs, queryDict);					
 		if(withSmallestWindow)		
 			smallWindowScorer = new SmallestWindowScorer(idfs, queryDict);
-			
-		Map<String, Double> tf_idfs, bm25, smallestWindow; 
+		boolean withMoreFeatures = (withUrlLen || withTitleLen|| withBodyLen|| withHeaderLen|| withAnchorLen|| withUrlPDF); 	
+		Map<String, Double> tf_idfs, bm25, smallestWindow, moreFeatures; 
 		
 		Map<String, Double> queryRelMap = null;
 		// go over every (query, document) instance in the training data, compute the features, and add it to the data set	
@@ -190,6 +223,22 @@ public class PairwiseLearner extends Learner {
 				}
 				if(withPageRank)
 					inst.setValue(fieldInd++, (double)doc.page_rank);
+				if(withMoreFeatures)  
+				{ 
+					moreFeatures = extractor.getMoreFeatures(doc, query);
+					if(withUrlLen)
+						inst.setValue(fieldInd++, moreFeatures.get("urlLen"));
+					if(withTitleLen)
+						inst.setValue(fieldInd++, moreFeatures.get("titleLen"));
+					if(withBodyLen)
+						inst.setValue(fieldInd++, moreFeatures.get("bodyLen"));
+					if(withHeaderLen)
+						inst.setValue(fieldInd++, moreFeatures.get("headerLen"));
+					if(withAnchorLen)
+						inst.setValue(fieldInd++, moreFeatures.get("anchorLen"));					
+					if(withUrlPDF)
+						inst.setValue(fieldInd++, moreFeatures.get("urlPDF"));
+				} 
 				// 2. Get the relevance score
 				inst.setValue(fieldInd, 1.0); // leave it as 1 for test set, it does not matter
 				if(!train_rel_file.equals(""))

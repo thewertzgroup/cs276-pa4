@@ -230,5 +230,15 @@ public class SmallestWindowScorer extends AScorer {
 		return featureVec;
 	} 
 	
+	@Override
+	// dumm, will never be called
+	public Map<String, Double> getMoreFeatures(Document d, Query q)
+	{ 
+		Map<String, Double> dumReturn = null; 
+		return dumReturn; 
+	} 
+	
+
+	
 }
 

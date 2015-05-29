@@ -8,11 +8,20 @@ import weka.core.Instances;
 
 public abstract class Learner {
 	
-	boolean withBM25, withSmallestWindow, withPageRank; 	
-	public Learner(boolean withBM25, boolean withSmallestWindow, boolean withPageRank) {
+	boolean withBM25, withSmallestWindow, withPageRank, withUrlLen, withTitleLen, withBodyLen, withHeaderLen, withAnchorLen, withUrlPDF; 	
+	public Learner(boolean withBM25, boolean withSmallestWindow, boolean withPageRank, boolean withUrlLen, boolean withTitleLen, boolean withBodyLen, boolean withHeaderLen, boolean withAnchorLen, boolean withUrlPDF)
+	{ 
 		this.withBM25 = withBM25;
 		this.withSmallestWindow = withSmallestWindow; 
-		this.withPageRank = withPageRank; 
+		this.withPageRank = withPageRank;
+		
+		this.withUrlLen = withUrlLen; 		
+		this.withTitleLen = withTitleLen; 
+		this.withBodyLen = withBodyLen; 
+		this.withHeaderLen = withHeaderLen; 
+		this.withAnchorLen = withAnchorLen;
+		
+		this.withUrlPDF = withUrlPDF; 
 	}
 	/* Construct training features matrix */
 	public abstract Instances extract_train_features(String train_data_file, String train_rel_file, Map<String,Double> idfs) throws Exception;

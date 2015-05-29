@@ -21,15 +21,15 @@ public class PointwiseLearner extends Learner {
 	
 	private ArrayList<Attribute> attributes = new ArrayList<Attribute>();
 	public PointwiseLearner() {
-		super(false, false, false); 
+		super(false, false, false, false, false, false, false, false, false);
 	  	attributes.add(new Attribute("url_w"));
 	  	attributes.add(new Attribute("title_w"));
 	  	attributes.add(new Attribute("body_w"));
 	  	attributes.add(new Attribute("header_w"));
 	  	attributes.add(new Attribute("anchor_w"));
 	}
-	public PointwiseLearner(boolean withBM25, boolean withSmallestWindow, boolean withPageRank) {
-		super(withBM25, withSmallestWindow, withPageRank); 
+	public PointwiseLearner(boolean withBM25, boolean withSmallestWindow, boolean withPageRank, boolean withUrlLen, boolean withTitleLen, boolean withBodyLen, boolean withHeaderLen, boolean withAnchorLen, boolean withUrlPDF){
+		super(withBM25, withSmallestWindow, withPageRank, withUrlLen, withTitleLen, withBodyLen, withHeaderLen, withAnchorLen, withUrlPDF);
 	  	attributes.add(new Attribute("url_w"));
 	  	attributes.add(new Attribute("title_w"));
 	  	attributes.add(new Attribute("body_w"));
@@ -43,6 +43,18 @@ public class PointwiseLearner extends Learner {
 	
 	  	if(withPageRank)
 	  		attributes.add(new Attribute("pageRank_w"));
+	 	if(withUrlLen)
+	  		attributes.add(new Attribute("UrlLen"));
+	  	if(withTitleLen)
+	  		attributes.add(new Attribute("TitleLen"));
+	  	if(withBodyLen)
+	  		attributes.add(new Attribute("BodyLen"));
+	  	if(withHeaderLen)
+	  		attributes.add(new Attribute("HeaderLen"));
+	  	if(withAnchorLen)
+	  		attributes.add(new Attribute("AnchorLen"));  	
+	  	if(withUrlPDF)
+	  		attributes.add(new Attribute("UrlPDF"));
 	  	
 	  		
 	}
@@ -76,8 +88,9 @@ public class PointwiseLearner extends Learner {
 		if(withBM25)
 			bm25Scorer = new BM25Scorer(idfs, queryDict);
 		if(withSmallestWindow)
-			smallWindowScorer = new SmallestWindowScorer(idfs, queryDict); 
-		Map<String, Double> tf_idfs, bm25, smallestWindow; 
+			smallWindowScorer = new SmallestWindowScorer(idfs, queryDict);
+		boolean withMoreFeatures = (withUrlLen || withTitleLen|| withBodyLen|| withHeaderLen|| withAnchorLen|| withUrlPDF);
+		Map<String, Double> tf_idfs, bm25, smallestWindow, moreFeatures; 
 		// go over every (query, document) instance in the training data, compute the features, and add it to the data set	
 		for (Query query : queryDict.keySet()) {
 			Map<String, Double> queryRelMap = relevanceDict.get(query.query);			 
@@ -103,6 +116,22 @@ public class PointwiseLearner extends Learner {
 				}
 				if(withPageRank)
 					inst.setValue(fieldInd++, (double)doc.page_rank);
+				if(withMoreFeatures)  
+				{ 
+					moreFeatures = extractor.getMoreFeatures(doc, query);
+					if(withUrlLen)
+						inst.setValue(fieldInd++, moreFeatures.get("urlLen"));
+					if(withTitleLen)
+						inst.setValue(fieldInd++, moreFeatures.get("titleLen"));
+					if(withBodyLen)
+						inst.setValue(fieldInd++, moreFeatures.get("bodyLen"));
+					if(withHeaderLen)
+						inst.setValue(fieldInd++, moreFeatures.get("headerLen"));
+					if(withAnchorLen)
+						inst.setValue(fieldInd++, moreFeatures.get("anchorLen"));					
+					if(withUrlPDF)
+						inst.setValue(fieldInd++, moreFeatures.get("urlPDF"));
+				}  
 				// 2. Get the relevance score	
 				 inst.setValue(fieldInd, queryRelMap.get(doc.url)); // does not matter 				
 				// 3. add the data instance for this query document pair to the data set				
@@ -150,8 +179,8 @@ public class PointwiseLearner extends Learner {
 		if(withSmallestWindow)
 			smallWindowScorer = new SmallestWindowScorer(idfs, queryDict);
 
-		
-		Map<String, Double> tf_idfs, bm25, smallestWindow; 
+		boolean withMoreFeatures = (withUrlLen || withTitleLen|| withBodyLen|| withHeaderLen|| withAnchorLen|| withUrlPDF);
+		Map<String, Double> tf_idfs, bm25, smallestWindow, moreFeatures; 
 		// go over every (query, document) instance in the training data, compute the features, and add it to the data set
 		for (Query query : queryDict.keySet()) {
 		//	System.out.println("query: " + query.query);
@@ -178,6 +207,22 @@ public class PointwiseLearner extends Learner {
 				}
 				if(withPageRank)
 					inst.setValue(fieldInd++, (double)doc.page_rank);
+				if(withMoreFeatures)  
+				{ 
+					moreFeatures = extractor.getMoreFeatures(doc, query);
+					if(withUrlLen)
+						inst.setValue(fieldInd++, moreFeatures.get("urlLen"));
+					if(withTitleLen)
+						inst.setValue(fieldInd++, moreFeatures.get("titleLen"));
+					if(withBodyLen)
+						inst.setValue(fieldInd++, moreFeatures.get("bodyLen"));
+					if(withHeaderLen)
+						inst.setValue(fieldInd++, moreFeatures.get("headerLen"));
+					if(withAnchorLen)
+						inst.setValue(fieldInd++, moreFeatures.get("anchorLen"));					
+					if(withUrlPDF)
+						inst.setValue(fieldInd++, moreFeatures.get("urlPDF"));
+				} 
 				inst.setValue(fieldInd, 1.0); // does not matter				
 								
 				// 2. add the data instance for this query document pair to the data set								
@@ -239,7 +284,7 @@ public class PointwiseLearner extends Learner {
 		
 			ranked_queries.put(q, rankedUrl); 
 		} 
-	/*	double weights[] = ((LinearRegression)model).coefficients(); 
+		/*double weights[] = ((LinearRegression)model).coefficients(); 
 		System.out.println("The model weights are" );
 		for(int i = 0; i< weights.length; i++)
 			System.out.print(weights[i] + " ");

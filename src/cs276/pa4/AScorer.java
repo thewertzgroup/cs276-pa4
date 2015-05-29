@@ -28,6 +28,7 @@ public abstract class AScorer {
 	
 	// returns list of features for a (query, document) pair
 	public abstract Map<String, Double> getFeatures(Document d, Query q); 
+	public abstract Map<String, Double> getMoreFeatures(Document d, Query q);	
 	
 	// Handle the query vector
 	public Map<String,Double> getQueryFreqs(Query q) {

@@ -98,4 +98,33 @@ public class tf_idfExtractor extends AScorer
 			
 		return tf_idf; 
 	}
+	
+	@Override	
+	public Map<String, Double> getMoreFeatures(Document d, Query q)
+	{ 
+		Map<String, Double> moreFeatures = new HashMap<String, Double>();
+
+		// add length of url 			
+		moreFeatures.put("urlLen", (double)this.parseURL(d.url).size());
+		
+		// add length of title 			
+		moreFeatures.put("titleLen", (double)this.parseTitle(d.title).size()); 
+		// add length of body 			
+		moreFeatures.put("bodyLen", (double)d.body_length); 
+		// add length of header 			
+		moreFeatures.put("headerLen", (double)this.parseHeaders(d.headers).size()); 
+		// add length of anchor 	
+		int anchorLen = 0;
+		for(Map.Entry<List<String>, Integer> entry: this.parseAnchors(d.anchors).entrySet()) 
+			anchorLen += entry.getKey().size() * entry.getValue(); 
+		moreFeatures.put("anchorLen", (double)anchorLen);
+		// check if url ends with .pdf
+		moreFeatures.put("urlPDF", 0.0);
+		if(d.url.endsWith(".pdf") || d.url.endsWith(".PDF"))
+			moreFeatures.put("urlPDF", 1.0); 
+		
+		return moreFeatures; 
+	} 
+	
+
 }

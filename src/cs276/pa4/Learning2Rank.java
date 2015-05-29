@@ -18,7 +18,7 @@ import weka.core.Instances;
 public class Learning2Rank {
 
 	
-	public static Classifier train(String train_data_file, String train_rel_file, int task, Map<String,Double> idfs) throws Exception {
+	public static Classifier train(String train_data_file, String train_rel_file, int task, Map<String,Double> idfs, double C, double gamma) throws Exception {
 	    System.err.println("## Training with feature_file =" + train_data_file + ", rel_file = " + train_rel_file + " ... \n");
 	    Classifier model = null;
 	    Learner learner = null;
@@ -28,13 +28,18 @@ public class Learning2Rank {
 		} else if (task == 2) {
 		  boolean isLinearKernel = false;
 			learner = new PairwiseLearner(isLinearKernel);
+		//	learner = new PairwiseLearner(C, gamma, isLinearKernel, false, false, false);
 		} else if (task == 3) {
 			
 			/* 
 			 * @TODO: Your code here, add more features 
 			 * */
+		/*	boolean isLinearKernel = true;
+			learner = new PairwiseLearner(8.0, 1.0, isLinearKernel, false, false, true);*/
 			boolean isLinearKernel = false;
-			learner = new PairwiseLearner(isLinearKernel, true, false, true);
+			//learner = new PairwiseLearner(2.0, 0.5, isLinearKernel, true, true, false);
+			learner = new PairwiseLearner(1.0, 0.09, isLinearKernel, true, false, true, true, true, true, true, true, false);
+
 			System.err.println("Task 3");
 			
 		} else if (task == 4) {
@@ -55,22 +60,26 @@ public class Learning2Rank {
 	  return model;
 	}
 
-	 public static Map<String, List<String>> test(String test_data_file, Classifier model, int task, Map<String,Double> idfs) throws Exception{
+	 public static Map<String, List<String>> test(String test_data_file, Classifier model, int task, Map<String,Double> idfs, double C, double gamma) throws Exception{
 		 	System.err.println("## Testing with feature_file=" + test_data_file + " ... \n");
 		    Map<String, List<String>> ranked_queries = new HashMap<String, List<String>>();
 		    Learner learner = null;
 	 		if (task == 1) {
 				learner = new PointwiseLearner();
 			} else if (task == 2) {
-			  boolean isLinearKernel = true;
-				learner = new PairwiseLearner(isLinearKernel);
+			  boolean isLinearKernel = false;
+			  learner = new PairwiseLearner(isLinearKernel);
+			//  learner = new PairwiseLearner(C, gamma, isLinearKernel, false, false, false);
+			   
 			} else if (task == 3) {
 
 				/* 
 				 * @TODO: Your code here, add more features 
 				 * */
+			/*	boolean isLinearKernel = true;
+				learner = new PairwiseLearner(8.0, 1.0, isLinearKernel, false, false, true);*/
 				boolean isLinearKernel = false;
-				learner = new PairwiseLearner(isLinearKernel, true, false, true);
+				learner = new PairwiseLearner(1.0, 0.09, isLinearKernel, true, false, true, true, true, true, true, true, false);
 				System.err.println("Task 3");
 				
 			} else if (task == 4) {
@@ -148,22 +157,25 @@ public class Learning2Rank {
 			idfs.put(term, idf); // overwrite the document frequency with the smoothened idf
 			}
 		
-		
-	    
-	    
+		double C = (1.0/2.0) * (1.0/2.0) * (1.0/2.0)*2.0*2.0*2.0*2.0*2.0*2.0;
+		double gamma = Math.pow((1.0/2.0), 1);  
+		//int iter = 0; 
+		//while(iter < 4 )
+		//{ 
 	    /* Train & test */
-	    System.err.println("### Running task" + task + "...");		
-	    Classifier model = train(train_data_file, train_rel_file, task, idfs);
+		System.err.println("### Running task" + task + "...");		
+		System.err.println("C = " + C);	
+	    Classifier model = train(train_data_file, train_rel_file, task, idfs, C, gamma);
 
 	    /* performance on the training data */
-	    Map<String, List<String>> trained_ranked_queries = test(train_data_file, model, task, idfs);
-	    String trainOutFile="tmp.train.ranked";
+	    Map<String, List<String>> trained_ranked_queries = test(train_data_file, model, task, idfs, C , gamma);
+	    String trainOutFile= "tmp.train.ranked";
 	    writeRankedResultsToFile(trained_ranked_queries, new PrintStream(new FileOutputStream(trainOutFile)));
 	    NdcgMain ndcg = new NdcgMain(train_rel_file);
 	    System.err.println("# Trained NDCG=" + ndcg.score(trainOutFile));
 	    (new File(trainOutFile)).delete();
       
-	    Map<String, List<String>> ranked_queries = test(test_data_file, model, task, idfs);
+	    Map<String, List<String>> ranked_queries = test(test_data_file, model, task, idfs, C, gamma);
 	 
 	    /* Output results */
 	    
@@ -179,5 +191,8 @@ public class Learning2Rank {
 	        e.printStackTrace();
 	      }
 	    }
+	//    C *= 2.0;  
+	//    iter++; 
+	//	} 
 	}
 }

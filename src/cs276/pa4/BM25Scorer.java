@@ -246,6 +246,15 @@ public class BM25Scorer extends AScorer {
 		featureVec.put("bm25", BM25Score); 		
 		return featureVec;
 	} 
+	@Override
+	// dumm, will never be called
+	public Map<String, Double> getMoreFeatures(Document d, Query q)	
+	{ 
+		Map<String, Double> dumReturn = null; 
+		return dumReturn; 
+	} 
+	
+	
 	
 }
 
