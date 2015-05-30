@@ -433,13 +433,13 @@ public class PairwiseLearner extends Learner {
 	// will implement on pairwise features and use classifyInstance 
 	// that outputs a binary: the class/category of the pair. 
 	public Map<String, List<String>> testing(TestFeatures tf,
-			Classifier model) throws Exception {
+			final Classifier model) throws Exception {
 		/*
 		 * @TODO: Your code here
 		 */		
 		
 		Map<String,List<String>> ranked_queries = new HashMap<String, List<String>>(); 		
-		Instances test_dataset = tf.features; /* The dataset you built in Step 3 */
+		final Instances test_dataset = tf.features; /* The dataset you built in Step 3 */
 		test_dataset.setClassIndex(test_dataset.numAttributes()-1);
 	/*	System.out.println("class attribute" + " " + test_dataset.classAttribute().value(0));
 	    System.out.println("class attribute" + " " + test_dataset.classAttribute().value(1));*/
